@@ -2,8 +2,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/dashboard/HomeScreen/HomeScreen';
 import DetailsScreen from '../screens/dashboard/DetailsScreen/DetailsScreen';
 import CartScreen from '../screens/dashboard/CartScreen/CartScreen';
-import LoginScreen from '../screens/dashboard/Login/LoginScreen';
-import RegisterScreen from '../screens/Register/RegisterScreens';
+import LoginScreen from '../screens/auth/Login/LoginScreen';
+import RegisterScreen from '../screens/auth/Register/RegisterScreens';
 
 const Stack = createStackNavigator();
 
