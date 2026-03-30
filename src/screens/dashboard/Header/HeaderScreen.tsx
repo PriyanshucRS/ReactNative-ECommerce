@@ -1,45 +1,28 @@
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import React from 'react';
-import { selectedItems } from '../../../redux/cartSlice';
-import { useSelector } from 'react-redux';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { styles } from './HeaderStyles';
 import { useNavigation } from '@react-navigation/native';
 
 export const HeaderScreen = () => {
-  const cartItems = useSelector(selectedItems);
-  const cartCount = cartItems.length;
   const navigation = useNavigation<any>();
+
   return (
     <View>
       <View style={styles.headerRow}>
-        <Image
-          source={require('../../../assets/main_logo.jpg')}
-          style={styles.logo}
-        />
-        <Text style={styles.Title}>Let's Go Shopping!</Text>
+        <View style={styles.titleRow}>
+          <Image
+            source={require('../../../assets/main_logo.jpg')}
+            style={styles.logo}
+          />
+          <Text style={styles.Title}>Let's Go Shopping!</Text>
+        </View>
 
         <TouchableOpacity
-          style={styles.cartWrapper}
-          onPress={() => navigation.navigate('cartScreen')}
+          style={styles.menuBtn}
+          onPress={() => navigation.openDrawer()}
         >
-          <Image
-            source={require('../../../assets/trolley.png')}
-            style={styles.cartLogo}
-          />
-          {cartCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.shutterBtn}>
-          <Text
-            style={styles.shutterText}
-            onPress={() => navigation.navigate('loginScreen')}
-          >
-            Logout
-          </Text>
+          <Ionicons name="menu-outline" size={28} color="#1F2937" />
         </TouchableOpacity>
       </View>
     </View>

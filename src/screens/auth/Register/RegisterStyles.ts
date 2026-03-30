@@ -2,10 +2,16 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 25,
+    paddingTop: 40,
+    paddingBottom: 40,
     justifyContent: 'center',
+  },
+  avoidContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   headerText: {
     fontSize: 28,
@@ -25,9 +31,39 @@ export const styles = StyleSheet.create({
     color: '#1F2937',
     marginTop: 15,
   },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    height: 55,
+    marginTop: 15,
+    overflow: 'hidden',
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 15,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  iconButton: {
+    height: '100%',
+    paddingHorizontal: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   inputError: {
     borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
   },
+  inputSuccess: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+
   errorText: {
     color: '#EF4444',
     fontSize: 12,

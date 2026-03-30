@@ -2,10 +2,16 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
+    padding: 25,
+    paddingTop: 40,
+    paddingBottom: 40,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+  },
+  avoidContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 25,
-    justifyContent: 'center',
   },
   headerText: {
     fontSize: 28,
@@ -13,7 +19,9 @@ export const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 30,
     textAlign: 'center',
+    lineHeight: 36,
   },
+
   input: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
@@ -25,8 +33,35 @@ export const styles = StyleSheet.create({
     color: '#1F2937',
     marginTop: 15,
   },
+
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    height: 55,
+    marginTop: 15,
+    overflow: 'hidden',
+  },
+
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 15,
+    fontSize: 16,
+    color: '#1F2937',
+  },
   inputError: {
     borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  iconButton: {
+    height: '100%',
+    paddingHorizontal: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   errorText: {
     color: '#EF4444',
@@ -53,23 +88,21 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  text: {
-    color: '#6B7280',
-    textAlign: 'center',
+  new: {
     marginTop: 20,
-    fontSize: 14,
   },
   text1: {
     color: '#3B82F6',
     textAlign: 'center',
-    marginTop: 15,
     fontWeight: 'bold',
     fontSize: 14,
   },
   new1: {
-    marginTop: 10,
+    marginTop: 15,
   },
-  new: {
-    marginTop: 20,
+  text: {
+    color: '#6B7280',
+    textAlign: 'center',
+    fontSize: 14,
   },
 });

@@ -9,6 +9,19 @@ export const styles = StyleSheet.create({
     paddingRight: 20,
     marginBottom: 20,
   },
+  menuBtn: {
+    padding: 8,
+    marginLeft: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  spacer: {
+    width: 36,
+  },
   logo: {
     width: 40,
     height: 40,
@@ -23,6 +36,7 @@ export const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: '#1F2937',
+    marginLeft: 10,
   },
   cartWrapper: {
     padding: 5,

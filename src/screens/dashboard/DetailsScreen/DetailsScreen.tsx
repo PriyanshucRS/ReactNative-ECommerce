@@ -8,9 +8,8 @@ import {
 } from 'react-native';
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { addToCart } from '../../../redux/cartSlice';
+import { addToCart, selectedItems } from '../../../store/slices/cartSlice';
 import { styles } from './DetailsStyles';
-import { selectedItems } from '../../../redux/cartSlice';
 
 const DetailsScreen = ({ route }: any) => {
   const { product } = route.params;
