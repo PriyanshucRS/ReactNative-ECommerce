@@ -1,9 +1,10 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../../../utils/colors';
 
 export const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundPrimary,
     paddingHorizontal: 25,
     paddingTop: 40,
     paddingBottom: 40,
@@ -11,32 +12,32 @@ export const styles = StyleSheet.create({
   },
   avoidContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundPrimary,
   },
   headerText: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 30,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     height: 55,
     borderRadius: 12,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginTop: 15,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     borderRadius: 12,
     height: 55,
     marginTop: 15,
@@ -47,7 +48,7 @@ export const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 15,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   iconButton: {
     height: '100%',
@@ -56,47 +57,47 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: colors.danger,
+    backgroundColor: colors.inputBg,
   },
   inputSuccess: {
-    borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    borderColor: colors.success,
+    backgroundColor: colors.successBg,
   },
 
   errorText: {
-    color: '#EF4444',
+    color: colors.danger,
     fontSize: 12,
     marginTop: 5,
     marginLeft: 5,
     fontWeight: '600',
   },
   btn: {
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.primary,
     height: 55,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 30,
-    elevation: 3,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   btnText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
   text: {
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 20,
     fontSize: 14,
   },
   text1: {
-    color: '#3B82F6',
+    color: colors.primary,
     textAlign: 'center',
     marginTop: 15,
     fontWeight: 'bold',
@@ -105,7 +106,26 @@ export const styles = StyleSheet.create({
   new1: {
     marginTop: 10,
   },
+  criteriaText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginLeft: 5,
+    marginTop: 5,
+  },
   new: {
     marginTop: 20,
+  },
+  Pcontainer: {
+    marginTop: 10,
+    marginLeft: 5,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  Ptext: {
+    width: '50%',
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 });

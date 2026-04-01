@@ -1,4 +1,4 @@
-const cartService = require("../service/cart.service");
+const cartService = require('../service/cart.service');
 
 exports.addToCart = async (req, res) => {
   try {
@@ -19,7 +19,7 @@ exports.deleteFromCart = async (req, res) => {
     const updatedCart = await cartService.removeItemFromCart(userId, productId);
 
     res.status(200).json({
-      message: "Item removed from cart",
+      message: 'Item removed from cart',
       cart: updatedCart,
     });
   } catch (error) {

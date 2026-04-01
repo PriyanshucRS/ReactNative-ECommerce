@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../../../utils/colors';
 
 export const styles = StyleSheet.create({
   headerRow: {
@@ -11,32 +12,33 @@ export const styles = StyleSheet.create({
   },
   menuBtn: {
     padding: 8,
-    marginLeft: 12,
+    marginRight: 12,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+    paddingRight: 20,
   },
   spacer: {
-    width: 36,
+    width: 44,
   },
   logo: {
     width: 40,
     height: 40,
     borderRadius: 40,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#F0F0F0',
+    borderColor: colors.textPrimary,
+    backgroundColor: colors.surfaceSecondary,
     resizeMode: 'cover',
     overflow: 'hidden',
   },
   Title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1F2937',
-    marginLeft: 10,
+    color: colors.textPrimary,
+    marginLeft: 15,
   },
   cartWrapper: {
     padding: 5,
@@ -47,23 +49,23 @@ export const styles = StyleSheet.create({
     height: 35,
     width: 35,
     resizeMode: 'contain',
+    tintColor: colors.textPrimary,
   },
   badge: {
     position: 'absolute',
     right: -2,
     top: -2,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    elevation: 4,
+    borderColor: colors.textPrimary,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',

@@ -3,6 +3,7 @@ import React from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { styles } from './HeaderStyles';
 import { useNavigation } from '@react-navigation/native';
+import { colors } from '../../../utils/colors';
 
 export const HeaderScreen = () => {
   const navigation = useNavigation<any>();
@@ -10,6 +11,8 @@ export const HeaderScreen = () => {
   return (
     <View>
       <View style={styles.headerRow}>
+        <View style={styles.spacer} />
+
         <View style={styles.titleRow}>
           <Image
             source={require('../../../assets/main_logo.jpg')}
@@ -22,7 +25,7 @@ export const HeaderScreen = () => {
           style={styles.menuBtn}
           onPress={() => navigation.openDrawer()}
         >
-          <Ionicons name="menu-outline" size={28} color="#1F2937" />
+          <Ionicons name="menu-outline" size={28} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
     </View>

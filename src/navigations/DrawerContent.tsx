@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useSelector } from 'react-redux';
+import { View, Text } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   DrawerContentScrollView,
   DrawerItemList,
@@ -9,86 +9,54 @@ import {
 } from '@react-navigation/drawer';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persistStore } from 'redux-persist';
+import { store } from '../store/store';
+import { logout } from '../store/slices/authSlice';
 import { selectedItems } from '../store/slices/cartSlice';
+import { drawerContentStyles } from './DrawerContentStyles';
 
-export const LogoutIcon = ({
-  color,
-  size,
-}: {
-  color: string;
-  size: number;
-}) => <Ionicons name="log-out-outline" color={color} size={size} />;
+const IconContainer = ({ name, color, size, children }: any) => (
+  <View style={drawerContentStyles.iconWrapper}>
+    <Ionicons name={name} color={color} size={size} />
+    {children}
+  </View>
+);
 
-export const HomeDrawerIcon = ({
-  color,
-  size,
-}: {
-  color: string;
-  size: number;
-}) => <Ionicons name="home-outline" color={color} size={size} />;
+export const LogoutIcon = ({ color, size }: any) => (
+  <IconContainer name="log-out-outline" color={color} size={size} />
+);
+export const HomeDrawerIcon = ({ color, size }: any) => (
+  <IconContainer name="home-outline" color={color} size={size} />
+);
+export const AddProductIcon = ({ color, size }: any) => (
+  <IconContainer name="cube-outline" color={color} size={size} />
+);
 
-export const AddProductIcon = ({
-  color,
-  size,
-}: {
-  color: string;
-  size: number;
-}) => <Ionicons name="cube-outline" color={color} size={size} />;
-
-export const CartDrawerIcon = ({
-  color,
-  size,
-}: {
-  color: string;
-  size: number;
-}) => {
+export const CartDrawerIcon = ({ color, size }: any) => {
   const cartItems = useSelector(selectedItems);
   const cartCount = cartItems.length;
 
   return (
-    <View style={drawerStyles.iconWrapper}>
-      <Ionicons name="cart-outline" color={color} size={size} />
+    <IconContainer name="cart-outline" color={color} size={size}>
       {cartCount > 0 && (
-        <View style={drawerStyles.badge}>
-          <Text style={drawerStyles.badgeText}>{cartCount}</Text>
+        <View style={drawerContentStyles.badge}>
+          <Text style={drawerContentStyles.badgeText}>{cartCount}</Text>
         </View>
       )}
-    </View>
+    </IconContainer>
   );
 };
 
-const drawerStyles = StyleSheet.create({
-  iconWrapper: {
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#EF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    lineHeight: 12,
-  },
-});
-
 export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   const { navigation } = props;
+  const dispatch = useDispatch();
+  const persistor = persistStore(store);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('userVerified');
+    dispatch(logout());
+    await AsyncStorage.multiRemove(['userVerified', 'persist:root']);
+    persistor.purge();
+
     navigation.getParent()?.reset({
       index: 0,
       routes: [{ name: 'loginScreen' }],
@@ -96,9 +64,26 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   };
 
   return (
-    <DrawerContentScrollView {...props}>
-      <DrawerItemList {...props} />
-      <DrawerItem label="Logout" icon={LogoutIcon} onPress={handleLogout} />
+    <DrawerContentScrollView
+      {...props}
+      contentContainerStyle={{ flex: 1 }}
+      style={drawerContentStyles.drawerContent}
+    >
+      <DrawerItemList
+        {...props}
+        itemStyle={drawerContentStyles.drawerItem}
+        labelStyle={drawerContentStyles.drawerLabel}
+      />
+
+      {/* Manual Logout Item */}
+      <DrawerItem
+        label="Logout"
+        icon={({ color, size }) => <LogoutIcon color={color} size={size} />}
+        onPress={handleLogout}
+        labelStyle={drawerContentStyles.logoutLabel}
+        style={drawerContentStyles.logoutItem}
+        labelProps={{ numberOfLines: 1 }}
+      />
     </DrawerContentScrollView>
   );
 };

@@ -1,17 +1,29 @@
-import React from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   selectedItems,
-  removeCart,
-  increment,
-  decrement,
+  fetchCartStart,
+  updateQuantityStart,
+  removeFromCartStart,
 } from '../../../store/slices/cartSlice';
 import { cartStyles } from './CartStyles';
 
 const CartScreen = () => {
   const cartItems = useSelector(selectedItems);
   const dispatch = useDispatch();
+  const cartState = useSelector((state: any) => state.cart);
+
+  useEffect(() => {
+    dispatch(fetchCartStart());
+  }, [dispatch]);
 
   const totalPrice = cartItems.reduce(
     (total: number, item: any) => total + item.price * item.quantity,
@@ -21,12 +33,12 @@ const CartScreen = () => {
   const renderItem = ({ item }: any) => (
     <View style={cartStyles.cartItem}>
       <View style={cartStyles.imgBox}>
-        <Image source={item.image} style={cartStyles.img} />
+        <Image source={{ uri: item.image }} style={cartStyles.img} />
       </View>
 
       <View style={cartStyles.info}>
         <Text style={cartStyles.name} numberOfLines={1}>
-          {item.name}
+          {item.title}
         </Text>
         <Text style={cartStyles.unitPrice}>
           Price: ₹{item.price.toLocaleString()}
@@ -41,7 +53,18 @@ const CartScreen = () => {
           <View style={cartStyles.counterContainer}>
             <TouchableOpacity
               style={cartStyles.btnAction}
-              onPress={() => dispatch(decrement(item.id))}
+              onPress={() => {
+                if (item.quantity > 1) {
+                  dispatch(
+                    updateQuantityStart({
+                      productId: item.productId,
+                      quantity: item.quantity - 1,
+                    }),
+                  );
+                } else {
+                  dispatch(removeFromCartStart({ productId: item.productId }));
+                }
+              }}
             >
               <Text style={cartStyles.btnText}>-</Text>
             </TouchableOpacity>
@@ -50,7 +73,14 @@ const CartScreen = () => {
 
             <TouchableOpacity
               style={cartStyles.btnAction}
-              onPress={() => dispatch(increment(item.id))}
+              onPress={() =>
+                dispatch(
+                  updateQuantityStart({
+                    productId: item.productId,
+                    quantity: item.quantity + 1,
+                  }),
+                )
+              }
             >
               <Text style={cartStyles.btnText}>+</Text>
             </TouchableOpacity>
@@ -58,7 +88,9 @@ const CartScreen = () => {
 
           {/* Remove Button */}
           <TouchableOpacity
-            onPress={() => dispatch(removeCart(item.id))}
+            onPress={() =>
+              dispatch(removeFromCartStart({ productId: item.productId }))
+            }
             style={cartStyles.removeBtn}
           >
             <Text style={cartStyles.removeText}>Remove</Text>
@@ -72,7 +104,9 @@ const CartScreen = () => {
     <View style={cartStyles.container}>
       <FlatList
         data={cartItems}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={(item, index) =>
+          (item._id || item.productId || index).toString()
+        }
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -82,7 +116,7 @@ const CartScreen = () => {
         }
       />
 
-      {cartItems.length > 0 && (
+      {cartItems.length > 0 && !cartState.loading && (
         <View style={cartStyles.footer}>
           <View style={cartStyles.totalRow}>
             <Text style={cartStyles.totalLabel}>Total Amount</Text>
@@ -90,9 +124,12 @@ const CartScreen = () => {
               ₹{totalPrice.toLocaleString()}
             </Text>
           </View>
-          {/* <TouchableOpacity style={cartStyles.checkoutBtn}>
-            <Text style={cartStyles.checkoutText}>Proceed to Checkout</Text>
-          </TouchableOpacity> */}
+        </View>
+      )}
+      {cartState.loading && (
+        <View style={cartStyles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text>Loading cart...</Text>
         </View>
       )}
     </View>

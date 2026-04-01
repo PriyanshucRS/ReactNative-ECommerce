@@ -10,16 +10,24 @@ import {
 import React, { useRef, useState } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { styles } from './LoginStyles';
 import { useForm, Controller } from 'react-hook-form';
 import { useDispatch } from 'react-redux';
-import { setUser } from '../../../store/slices/authSlice';
+import { loginRequest, clearError } from '../../../store/slices/authSlice';
+import { useSelector } from 'react-redux';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
 
 const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
-  const [loading, setLoading] = useState(false);
+  const authLoading = useSelector((state: any) => state.auth.loading);
+  const authError = useSelector((state: any) => state.auth.error);
+  const authUser = useSelector((state: any) => state.auth.user);
+  // console.log('LoginScreen authUser:', authUser); // Debug
+
   const [showPassword, setShowPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const passwordInputRef = useRef<any>(null);
@@ -27,6 +35,7 @@ const LoginScreen = () => {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -35,36 +44,25 @@ const LoginScreen = () => {
     },
   });
 
+  useEffect(() => {
+    if (authError && !authLoading) {
+      Alert.alert('Invalid Credentials');
+      dispatch(clearError());
+    }
+    if (authUser && !authLoading && !authError) {
+      Alert.alert('Success', 'Logged in successfully!');
+      AsyncStorage.setItem('userVerified', 'true');
+      reset();
+      navigation.replace('MainDrawer');
+    }
+  }, [authError, authUser, authLoading, dispatch, reset, navigation]);
+
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
   };
 
-  const handleLogin = async (data: any) => {
-    setLoading(true);
-    try {
-      const storedEmail = await AsyncStorage.getItem('email');
-      const storedPassword = await AsyncStorage.getItem('password');
-
-      if (storedEmail === data.email && storedPassword === data.password) {
-        const firstName = (await AsyncStorage.getItem('firstName')) || '';
-        const lastName = (await AsyncStorage.getItem('lastName')) || '';
-        const userData = {
-          id: Date.now().toString(),
-          email: storedEmail!,
-          firstName,
-          lastName,
-          password: data.password,
-        };
-        dispatch(setUser(userData));
-        navigation.replace('MainDrawer');
-      } else {
-        console.log('Invalid credentials');
-      }
-    } catch (error) {
-      Alert.alert('Login error:', error);
-    } finally {
-      setLoading(false);
-    }
+  const loginSubmit = (data: any) => {
+    dispatch(loginRequest(data));
   };
 
   return (
@@ -86,13 +84,13 @@ const LoginScreen = () => {
             required: 'Email is required',
             pattern: {
               value: /\S+@\S+\.\S+/,
-              message: 'Invalid email address',
+              message: 'Invalid email',
             },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Enter Email"
+              placeholder="Enter your email"
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -114,11 +112,6 @@ const LoginScreen = () => {
           rules={{
             required: 'Password is required',
             minLength: { value: 6, message: 'Password must be 6 characters' },
-            pattern: {
-              value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/,
-              message:
-                'Password must include uppercase, number, and special character',
-            },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
             <View
@@ -130,7 +123,7 @@ const LoginScreen = () => {
               <TextInput
                 ref={passwordInputRef}
                 style={styles.passwordInput}
-                placeholder="Password"
+                placeholder="Enter your password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showPassword}
                 onFocus={() => setPasswordFocused(true)}
@@ -168,10 +161,10 @@ const LoginScreen = () => {
         {/* Buttons Section */}
         <TouchableOpacity
           style={styles.btn}
-          onPress={handleSubmit(handleLogin)}
-          disabled={loading}
+          onPress={handleSubmit(loginSubmit)}
+          disabled={authLoading}
         >
-          {loading ? (
+          {authLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.btnText}>Login</Text>
@@ -183,13 +176,6 @@ const LoginScreen = () => {
           style={styles.new}
         >
           <Text style={styles.text1}>New here? Go to Register</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.replace('MainDrawer')}
-          style={styles.new1}
-        >
-          <Text style={styles.text}>Skip to Home</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

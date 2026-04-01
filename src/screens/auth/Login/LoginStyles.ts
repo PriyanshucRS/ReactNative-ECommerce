@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../../../utils/colors';
 
 export const styles = StyleSheet.create({
   container: {
@@ -6,56 +7,53 @@ export const styles = StyleSheet.create({
     padding: 25,
     paddingTop: 40,
     paddingBottom: 40,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundPrimary,
     justifyContent: 'center',
   },
   avoidContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.backgroundPrimary,
   },
   headerText: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 30,
     textAlign: 'center',
     lineHeight: 36,
   },
-
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     height: 55,
     borderRadius: 12,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginTop: 15,
   },
-
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     borderRadius: 12,
     height: 55,
     marginTop: 15,
     overflow: 'hidden',
   },
-
   passwordInput: {
     flex: 1,
     height: '100%',
     paddingHorizontal: 15,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: colors.danger,
+    backgroundColor: colors.inputBg,
   },
   iconButton: {
     height: '100%',
@@ -64,27 +62,27 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.danger,
     fontSize: 12,
     marginTop: 5,
     marginLeft: 5,
     fontWeight: '600',
   },
   btn: {
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.primary,
     height: 55,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 30,
-    elevation: 3,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   btnText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -92,16 +90,13 @@ export const styles = StyleSheet.create({
     marginTop: 20,
   },
   text1: {
-    color: '#3B82F6',
+    color: colors.primary,
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 14,
   },
-  new1: {
-    marginTop: 15,
-  },
   text: {
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     fontSize: 14,
   },

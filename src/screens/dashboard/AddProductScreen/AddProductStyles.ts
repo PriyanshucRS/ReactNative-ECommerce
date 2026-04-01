@@ -1,9 +1,10 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../../../utils/colors';
 
 export const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundPrimary,
   },
   container: {
     padding: 20,
@@ -12,7 +13,7 @@ export const styles = StyleSheet.create({
   header: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 24,
   },
   field: {
@@ -20,18 +21,34 @@ export const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.textSecondary,
     marginBottom: 8,
     fontWeight: '600',
   },
-  input: {
-    backgroundColor: '#FFFFFF',
+  pickerContainer: {
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.inputBg,
+    overflow: 'hidden',
+  },
+  input: {
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#111827',
+    color: colors.textPrimary,
+    fontSize: 16,
+  },
+  picker: {
+    color: colors.textPrimary,
+    width: '100%',
+  },
+  pickerItem: {
+    height: 44,
+    color: colors.textPrimary,
     fontSize: 16,
   },
   textArea: {
@@ -39,38 +56,12 @@ export const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: colors.danger,
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.danger,
     marginTop: 6,
     fontSize: 13,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  categoryChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F8FAFC',
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  categoryChipActive: {
-    backgroundColor: '#1D4ED8',
-    borderColor: '#1D4ED8',
-  },
-  categoryText: {
-    color: '#374151',
-    fontWeight: '600',
-  },
-  categoryTextActive: {
-    color: '#FFFFFF',
   },
   modeRow: {
     flexDirection: 'row',
@@ -80,53 +71,71 @@ export const styles = StyleSheet.create({
   modeButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     borderRadius: 999,
     paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.inputBg,
   },
   modeButtonActive: {
-    backgroundColor: '#1D4ED8',
-    borderColor: '#1D4ED8',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   modeText: {
-    color: '#374151',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   modeTextActive: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   uploadButton: {
-    backgroundColor: '#E0E7FF',
+    backgroundColor: colors.surfaceSecondary,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: colors.borderLight,
     alignItems: 'center',
   },
   uploadText: {
-    color: '#1D4ED8',
+    color: colors.primary,
     fontWeight: '700',
+  },
+  previewWrapper: {
+    position: 'relative',
   },
   previewImage: {
     width: '100%',
     height: 180,
     borderRadius: 14,
     marginTop: 12,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.inputBg,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
   },
   submitButton: {
-    backgroundColor: '#1D4ED8',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 14,
     marginTop: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: colors.borderLight,
+  },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 16,
   },

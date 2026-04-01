@@ -3,7 +3,7 @@ import axios from 'axios';
 import { store } from '../store/store';
 
 export const apiClient = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'http://192.168.1.16:5000/api',
   withCredentials: true,
 });
 

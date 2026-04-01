@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   ScrollView,
   Text,
@@ -6,9 +7,8 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { addToCart, selectedItems } from '../../../store/slices/cartSlice';
+import { addToCartStart, selectedItems } from '../../../store/slices/cartSlice';
 import { styles } from './DetailsStyles';
 
 const DetailsScreen = ({ route }: any) => {
@@ -17,19 +17,25 @@ const DetailsScreen = ({ route }: any) => {
   const cartItems = useSelector(selectedItems);
 
   const handleAddToCart = () => {
-    const isProductInCart = cartItems.some(
-      (item: any) => item.id === product.id,
+    const productId = product.id || product._id;
+
+    const existingItem = cartItems.find(
+      (item: any) => (item.productId || item._id || item.id) === productId,
     );
 
-    if (isProductInCart) {
+    if (existingItem) {
       Alert.alert(
         'Already in Cart',
-        `${product.name} is already there. We've updated the count!`,
+        `${product.title || product.name} is already in cart (Quantity: ${
+          existingItem.quantity
+        }). Quantity updated!`,
       );
-      dispatch(addToCart(product));
-    } else {
-      dispatch(addToCart(product));
-      Alert.alert('Success', `${product.name} has been added to your cart.`);
+    }
+
+    dispatch(addToCartStart(product));
+
+    if (!existingItem) {
+      Alert.alert('Added!', `${product.title || product.name} added to cart.`);
     }
   };
 
@@ -37,7 +43,7 @@ const DetailsScreen = ({ route }: any) => {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.imageBox}>
-          <Image source={product.image} style={styles.image} />
+          <Image source={{ uri: product.image }} style={styles.image} />
         </View>
 
         <View style={styles.infoBox}>

@@ -18,8 +18,16 @@ const DrawerNavigator = () => {
       drawerContent={CustomDrawerContent}
       screenOptions={{
         headerShown: false,
-        drawerActiveTintColor: '#1F2937',
-        drawerLabelStyle: { fontSize: 16 },
+        drawerStyle: {
+          backgroundColor: '#0F0F23',
+          width: 280,
+        },
+        drawerActiveTintColor: '#3B82F6',
+        drawerInactiveTintColor: '#CBD5E1',
+        drawerLabelStyle: {
+          fontSize: 16,
+          marginLeft: 10,
+        },
       }}
     >
       <Drawer.Screen

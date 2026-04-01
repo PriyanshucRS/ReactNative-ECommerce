@@ -1,41 +1,95 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface CartItem {
-  id: string;
+  id: string | undefined;
+  _id?: string;
+  title?: string;
   name: string;
   price: number;
-  quantity: number;
+  description?: string;
+  category?: string;
   image?: string;
+  quantity: number;
 }
 
 interface CartState {
   items: CartItem[];
+  loading: boolean;
+  error: string | null;
 }
 
 const initialState: CartState = {
   items: [],
+  loading: false,
+  error: null,
 };
 
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    addToCart: (state, action: PayloadAction<CartItem>) => {
-      const item = state.items.find(i => i.id === action.payload.id);
-      if (item) {
-        item.quantity += 1;
-      } else {
-        state.items.push({ ...action.payload, quantity: 1 });
-      }
+    addToCartStart: state => {
+      state.loading = true;
     },
-
+    addToCartSuccess: (state, action: PayloadAction<any>) => {
+      state.loading = false;
+      state.items = action.payload.items || state.items;
+    },
+    addToCartFailure: (state, action: PayloadAction<string>) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    fetchCartStart: state => {
+      state.loading = true;
+      state.error = null;
+    },
+    fetchCartSuccess: (state, action: PayloadAction<any>) => {
+      state.loading = false;
+      state.items = action.payload.items || action.payload || [];
+    },
+    fetchCartFailure: (state, action: PayloadAction<string>) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    updateQuantityStart: (
+      state,
+      _action: PayloadAction<{ productId: string; quantity: number }>,
+    ) => {
+      state.loading = true;
+    },
+    updateQuantitySuccess: (state, action: PayloadAction<any>) => {
+      state.loading = false;
+      state.items = action.payload.items || state.items;
+    },
+    updateQuantityFailure: (state, action: PayloadAction<string>) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    removeFromCartStart: (
+      state,
+      action: PayloadAction<{ productId: string }>,
+    ) => {
+      state.loading = true;
+    },
+    removeFromCartSuccess: (
+      state,
+      action: PayloadAction<{ productId: string }>,
+    ) => {
+      state.loading = false;
+      state.items = state.items.filter(
+        item => item.productId !== action.payload.productId,
+      );
+    },
+    removeFromCartFailure: (state, action: PayloadAction<string>) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
     increment: (state, action: PayloadAction<string>) => {
       const item = state.items.find(i => i.id === action.payload);
       if (item) {
         item.quantity += 1;
       }
     },
-
     decrement: (state, action: PayloadAction<string>) => {
       const item = state.items.find(i => i.id === action.payload);
       if (item) {
@@ -46,11 +100,9 @@ const cartSlice = createSlice({
         }
       }
     },
-
     removeCart: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter(item => item.id !== action.payload);
     },
-
     clearCart: state => {
       state.items = [];
     },
@@ -59,6 +111,22 @@ const cartSlice = createSlice({
 
 export const selectedItems = (state: any) => state.cart.items;
 
-export const { addToCart, removeCart, increment, decrement, clearCart } =
-  cartSlice.actions;
+export const {
+  addToCartStart,
+  addToCartSuccess,
+  addToCartFailure,
+  fetchCartStart,
+  fetchCartSuccess,
+  fetchCartFailure,
+  updateQuantityStart,
+  updateQuantitySuccess,
+  updateQuantityFailure,
+  removeFromCartStart,
+  removeFromCartSuccess,
+  removeFromCartFailure,
+  increment,
+  decrement,
+  removeCart,
+  clearCart,
+} = cartSlice.actions;
 export default cartSlice.reducer;

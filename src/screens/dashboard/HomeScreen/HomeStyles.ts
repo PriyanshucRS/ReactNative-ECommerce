@@ -1,29 +1,36 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../../../utils/colors';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.backgroundPrimary,
     paddingHorizontal: 10,
-    marginTop: 10,
   },
 
   columnWrapper: {
     justifyContent: 'space-between',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfacePrimary,
     width: '48%',
     marginBottom: 16,
     borderRadius: 15,
-    elevation: 4,
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   Imgcontainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceSecondary,
     height: 150,
     width: '100%',
     padding: 10,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
   },
   image: {
     width: '100%',
@@ -35,7 +42,7 @@ export const styles = StyleSheet.create({
   },
   category: {
     fontSize: 9,
-    color: '#9CA3AF',
+    color: colors.primary,
     textTransform: 'uppercase',
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -43,12 +50,12 @@ export const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginTop: 4,
   },
   desc: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 4,
     lineHeight: 16,
     height: 32,
@@ -62,7 +69,7 @@ export const styles = StyleSheet.create({
   price: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#10B981',
+    color: colors.success,
   },
 
   emptyContainer: {
@@ -75,7 +82,33 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     fontWeight: '600',
+  },
+  welcome: {
+    position: 'absolute',
+    top: 80,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: colors.primary,
+    padding: 12,
+    borderRadius: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '70%',
+  },
+  welcomeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  welcomeText1: {
+    padding: 4,
   },
 });

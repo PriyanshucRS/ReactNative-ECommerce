@@ -12,14 +12,16 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from './RegisterStyles';
 import { useForm, Controller } from 'react-hook-form';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../../../store/slices/authSlice';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerRequest, clearError } from '../../../store/slices/authSlice';
+import { useEffect } from 'react';
 
 const RegisterScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
-  const [loading, setLoading] = useState(false);
+  const authLoading = useSelector((state: any) => state.auth.loading);
+  const authError = useSelector((state: any) => state.auth.error);
+  const isRegistered = useSelector((state: any) => state.auth.isRegistered);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -27,9 +29,20 @@ const RegisterScreen = () => {
   const passwordInputRef = useRef<any>(null);
   const confirmPasswordInputRef = useRef<any>(null);
 
+  const [hasLowercase, setHasLowercase] = useState(false);
+  const [hasUppercase, setHasUppercase] = useState(false);
+  const [hasNumber, setHasNumber] = useState(false);
+  const [hasSpecial, setHasSpecial] = useState(false);
+  const [hasMinLength, setHasMinLength] = useState(false);
+
+  useEffect(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
   const {
     control,
     handleSubmit,
+    reset,
     watch,
     formState: { errors },
   } = useForm({
@@ -43,6 +56,39 @@ const RegisterScreen = () => {
     },
   });
 
+  const password = watch('password');
+
+  useEffect(() => {
+    const lower = /[a-z]/.test(password);
+    const upper = /[A-Z]/.test(password);
+    const number = /[0-9]/.test(password);
+    const special = /[!@#$%^&*]/.test(password);
+    const length = password.length >= 6;
+
+    setHasLowercase(lower);
+    setHasUppercase(upper);
+    setHasNumber(number);
+    setHasSpecial(special);
+    setHasMinLength(length);
+  }, [password]);
+
+  const getCriteriaColor = (met: boolean) => (met ? '#10B981' : '#EF4444');
+
+  useEffect(() => {
+    if (isRegistered && !authLoading) {
+      Alert.alert('Success', 'Account created successfully! Please login.');
+      dispatch(clearError());
+      setTimeout(() => {
+        reset();
+        navigation.replace('loginScreen');
+      }, 1500);
+    }
+    if (authError && !authLoading) {
+      Alert.alert('Registration Failed', authError);
+      dispatch(clearError());
+    }
+  }, [isRegistered, authError, authLoading, dispatch, reset, navigation]);
+
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
   };
@@ -51,41 +97,9 @@ const RegisterScreen = () => {
     setShowConfirmPassword(prev => !prev);
   };
 
-  const handleRegister = async (data: any) => {
-    setLoading(true);
-    try {
-      const storedEmail = await AsyncStorage.getItem('email');
-
-      if (storedEmail === data.email) {
-        Alert.alert(
-          'Registration Error',
-          'This email is already registered. Please login.',
-        );
-        setLoading(false);
-        return;
-      }
-      await AsyncStorage.multiSet([
-        ['userVerified', 'true'],
-        ['email', data.email],
-        ['password', data.password],
-        ['firstName', data.firstName],
-        ['lastName', data.lastName],
-      ]);
-
-      const userData = {
-        id: Date.now().toString(),
-        email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-      };
-
-      dispatch(setUser(userData));
-      navigation.navigate('loginScreen');
-    } catch (error) {
-      Alert.alert('Error', 'Registration failed to save');
-    } finally {
-      setLoading(false);
-    }
+  const handleRegister = (data: any) => {
+    const { confirmPassword, ...submitData } = data;
+    dispatch(registerRequest(submitData));
   };
 
   return (
@@ -104,7 +118,7 @@ const RegisterScreen = () => {
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.firstName && styles.inputError]}
-              placeholder="First Name"
+              placeholder="Enter your first name"
               placeholderTextColor="#9CA3AF"
               onBlur={onBlur}
               onChangeText={onChange}
@@ -125,7 +139,7 @@ const RegisterScreen = () => {
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.lastName && styles.inputError]}
-              placeholder="Last Name"
+              placeholder="Enter your last name"
               placeholderTextColor="#9CA3AF"
               onBlur={onBlur}
               onChangeText={onChange}
@@ -149,7 +163,7 @@ const RegisterScreen = () => {
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Email"
+              placeholder="Enter your email"
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -180,7 +194,7 @@ const RegisterScreen = () => {
               <TextInput
                 ref={passwordInputRef}
                 style={styles.passwordInput}
-                placeholder="Password"
+                placeholder="Enter your password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showPassword}
                 onFocus={() => setPasswordFocused(true)}
@@ -215,6 +229,26 @@ const RegisterScreen = () => {
           </Text>
         )}
 
+        {/* Password strength criteria */}
+        {passwordFocused && (
+          <View style={styles.Pcontainer}>
+            {[
+              ['Minimum 6 characters', hasMinLength],
+              ['Lowercase letter', hasLowercase],
+              ['Uppercase letter', hasUppercase],
+              ['Number', hasNumber],
+              ['Special character', hasSpecial],
+            ].map(([label, cond], i) => (
+              <Text
+                key={i}
+                style={[styles.Ptext, { color: getCriteriaColor(cond) }]}
+              >
+                • {label} {cond ? '✓' : '✗'}
+              </Text>
+            ))}
+          </View>
+        )}
+
         <Controller
           control={control}
           name="confirmPassword"
@@ -233,7 +267,7 @@ const RegisterScreen = () => {
               <TextInput
                 ref={confirmPasswordInputRef}
                 style={styles.passwordInput}
-                placeholder="Confirm Password"
+                placeholder="Enter your confirm password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showConfirmPassword}
                 onFocus={() => setConfirmPasswordFocused(true)}
@@ -271,9 +305,9 @@ const RegisterScreen = () => {
         <TouchableOpacity
           style={styles.btn}
           onPress={handleSubmit(handleRegister)}
-          disabled={loading}
+          disabled={authLoading}
         >
-          {loading ? (
+          {authLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.btnText}>Register</Text>
