@@ -9,10 +9,9 @@ import {
 } from '@react-navigation/drawer';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { persistStore } from 'redux-persist';
-import { store } from '../store/store';
-import { logout } from '../store/slices/authSlice';
-import { selectedItems } from '../store/slices/cartSlice';
+import { persistor } from '../store/store';
+import { clearUser } from '../slices/authSlice';
+import { selectedItems } from '../slices/cartSlice';
 import { drawerContentStyles } from './DrawerContentStyles';
 
 const IconContainer = ({ name, color, size, children }: any) => (
@@ -47,42 +46,58 @@ export const CartDrawerIcon = ({ color, size }: any) => {
   );
 };
 
+// Icon renderer function outside component to prevent recreation on render
+const renderLogoutIcon = ({ color, size }: { color: string; size: number }) => (
+  <LogoutIcon color={color} size={size} />
+);
+
+const drawerContentStyles_internal = {
+  scrollViewContent: { flex: 1 },
+};
+
 export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   const { navigation } = props;
   const dispatch = useDispatch();
-  const persistor = persistStore(store);
 
   const handleLogout = async () => {
-    dispatch(logout());
-    await AsyncStorage.multiRemove(['userVerified', 'persist:root']);
-    persistor.purge();
+    try {
+      dispatch(clearUser());
+      if (typeof AsyncStorage.multiRemove === 'function') {
+        await AsyncStorage.multiRemove(['userVerified', 'persist:root']);
+      } else {
+        await AsyncStorage.removeItem('userVerified');
+        await AsyncStorage.removeItem('persist:root');
+      }
+      await persistor?.purge?.();
 
-    navigation.getParent()?.reset({
-      index: 0,
-      routes: [{ name: 'loginScreen' }],
-    });
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{ name: 'loginScreen' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{ name: 'loginScreen' }],
+      });
+    }
   };
 
   return (
     <DrawerContentScrollView
       {...props}
-      contentContainerStyle={{ flex: 1 }}
+      contentContainerStyle={drawerContentStyles_internal.scrollViewContent}
       style={drawerContentStyles.drawerContent}
     >
-      <DrawerItemList
-        {...props}
-        itemStyle={drawerContentStyles.drawerItem}
-        labelStyle={drawerContentStyles.drawerLabel}
-      />
+      <DrawerItemList {...props} />
 
       {/* Manual Logout Item */}
       <DrawerItem
         label="Logout"
-        icon={({ color, size }) => <LogoutIcon color={color} size={size} />}
+        icon={renderLogoutIcon}
         onPress={handleLogout}
         labelStyle={drawerContentStyles.logoutLabel}
         style={drawerContentStyles.logoutItem}
-        labelProps={{ numberOfLines: 1 }}
       />
     </DrawerContentScrollView>
   );

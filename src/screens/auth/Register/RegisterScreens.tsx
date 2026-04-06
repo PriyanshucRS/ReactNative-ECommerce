@@ -7,25 +7,28 @@ import {
   Alert,
   View,
 } from 'react-native';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { styles } from './RegisterStyles';
 import { useForm, Controller } from 'react-hook-form';
-import { useDispatch, useSelector } from 'react-redux';
-import { registerRequest, clearError } from '../../../store/slices/authSlice';
-import { useEffect } from 'react';
+import { useRegisterMutation } from '../../../services/api';
+
+interface RegisterData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
 
 const RegisterScreen = () => {
   const navigation = useNavigation<any>();
-  const dispatch = useDispatch();
-  const authLoading = useSelector((state: any) => state.auth.loading);
-  const authError = useSelector((state: any) => state.auth.error);
-  const isRegistered = useSelector((state: any) => state.auth.isRegistered);
+  const [register, { isLoading }] = useRegisterMutation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+  const [_, setConfirmPasswordFocused] = useState(false);
   const passwordInputRef = useRef<any>(null);
   const confirmPasswordInputRef = useRef<any>(null);
 
@@ -35,17 +38,13 @@ const RegisterScreen = () => {
   const [hasSpecial, setHasSpecial] = useState(false);
   const [hasMinLength, setHasMinLength] = useState(false);
 
-  useEffect(() => {
-    dispatch(clearError());
-  }, [dispatch]);
-
   const {
     control,
     handleSubmit,
     reset,
     watch,
     formState: { errors },
-  } = useForm({
+  } = useForm<RegisterData>({
     mode: 'onChange',
     defaultValues: {
       firstName: '',
@@ -74,20 +73,27 @@ const RegisterScreen = () => {
 
   const getCriteriaColor = (met: boolean) => (met ? '#10B981' : '#EF4444');
 
-  useEffect(() => {
-    if (isRegistered && !authLoading) {
-      Alert.alert('Success', 'Account created successfully! Please login.');
-      dispatch(clearError());
-      setTimeout(() => {
-        reset();
-        navigation.replace('loginScreen');
-      }, 1500);
+  const onSubmit = async (data: RegisterData) => {
+    try {
+      const { confirmPassword, ...registerData } = data;
+      // Trim whitespace from all fields
+      const trimmedData = {
+        ...registerData,
+        firstName: registerData.firstName.trim(),
+        lastName: registerData.lastName.trim(),
+        email: registerData.email.trim(),
+      };
+      console.log('Register payload:', trimmedData);
+      const result = await register(trimmedData).unwrap();
+      console.log('Register result:', result);
+      Alert.alert('Success', 'Account created! Please login.');
+      reset();
+      navigation.replace('loginScreen');
+    } catch (error: any) {
+      console.error('Register error:', error);
+      Alert.alert('Error', error.data?.message || 'Registration failed');
     }
-    if (authError && !authLoading) {
-      Alert.alert('Registration Failed', authError);
-      dispatch(clearError());
-    }
-  }, [isRegistered, authError, authLoading, dispatch, reset, navigation]);
+  };
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
@@ -95,11 +101,6 @@ const RegisterScreen = () => {
 
   const toggleConfirmPasswordVisibility = () => {
     setShowConfirmPassword(prev => !prev);
-  };
-
-  const handleRegister = (data: any) => {
-    const { confirmPassword, ...submitData } = data;
-    dispatch(registerRequest(submitData));
   };
 
   return (
@@ -127,9 +128,7 @@ const RegisterScreen = () => {
           )}
         />
         {errors.firstName && (
-          <Text style={styles.errorText}>
-            {errors.firstName.message as string}
-          </Text>
+          <Text style={styles.errorText}>{errors.firstName.message}</Text>
         )}
 
         <Controller
@@ -148,9 +147,7 @@ const RegisterScreen = () => {
           )}
         />
         {errors.lastName && (
-          <Text style={styles.errorText}>
-            {errors.lastName.message as string}
-          </Text>
+          <Text style={styles.errorText}>{errors.lastName.message}</Text>
         )}
 
         <Controller
@@ -174,7 +171,7 @@ const RegisterScreen = () => {
           )}
         />
         {errors.email && (
-          <Text style={styles.errorText}>{errors.email.message as string}</Text>
+          <Text style={styles.errorText}>{errors.email.message}</Text>
         )}
 
         <Controller
@@ -206,12 +203,7 @@ const RegisterScreen = () => {
                 value={value}
               />
               <TouchableOpacity
-                onPressIn={togglePasswordVisibility}
-                onPressOut={() => {
-                  if (passwordFocused) {
-                    passwordInputRef.current?.focus();
-                  }
-                }}
+                onPress={togglePasswordVisibility}
                 style={styles.iconButton}
               >
                 <Ionicons
@@ -224,12 +216,9 @@ const RegisterScreen = () => {
           )}
         />
         {errors.password && (
-          <Text style={styles.errorText}>
-            {errors.password.message as string}
-          </Text>
+          <Text style={styles.errorText}>{errors.password.message}</Text>
         )}
 
-        {/* Password strength criteria */}
         {passwordFocused && (
           <View style={styles.Pcontainer}>
             {[
@@ -267,7 +256,7 @@ const RegisterScreen = () => {
               <TextInput
                 ref={confirmPasswordInputRef}
                 style={styles.passwordInput}
-                placeholder="Enter your confirm password"
+                placeholder="Confirm your password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showConfirmPassword}
                 onFocus={() => setConfirmPasswordFocused(true)}
@@ -279,12 +268,7 @@ const RegisterScreen = () => {
                 value={value}
               />
               <TouchableOpacity
-                onPressIn={toggleConfirmPasswordVisibility}
-                onPressOut={() => {
-                  if (confirmPasswordFocused) {
-                    confirmPasswordInputRef.current?.focus();
-                  }
-                }}
+                onPress={toggleConfirmPasswordVisibility}
                 style={styles.iconButton}
               >
                 <Ionicons
@@ -297,17 +281,15 @@ const RegisterScreen = () => {
           )}
         />
         {errors.confirmPassword && (
-          <Text style={styles.errorText}>
-            {errors.confirmPassword.message as string}
-          </Text>
+          <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
         )}
 
         <TouchableOpacity
           style={styles.btn}
-          onPress={handleSubmit(handleRegister)}
-          disabled={authLoading}
+          onPress={handleSubmit(onSubmit)}
+          disabled={isLoading}
         >
-          {authLoading ? (
+          {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.btnText}>Register</Text>

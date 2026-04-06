@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   TextInput,
@@ -16,19 +16,13 @@ import {
   ImageLibraryOptions,
 } from 'react-native-image-picker';
 import { useForm, Controller } from 'react-hook-form';
-import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
+import { useAddProductMutation } from '../../../services/api';
 import { styles } from './AddProductStyles';
-import {
-  addProductStart,
-  fetchProductsStart,
-} from '../../../store/slices/addProductSlice';
-import type { RootState } from '../../../store/rootReducer';
-import { resetAddProductState } from '../../../store/slices/addProductSlice';
 
 interface FormData {
   title: string;
-  price: string;
+  price: number;
   description: string;
   category: string;
   image: string;
@@ -44,22 +38,14 @@ const categoryOptions = [
 ];
 
 const AddProductScreen = () => {
-  const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
-  const dispatch = useDispatch();
   const navigation = useNavigation<any>();
-  const addProductState = useSelector((state: RootState) => state.addProduct);
+  const [addProduct, { isLoading }] = useAddProductMutation();
+  const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
 
-  const {
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm<FormData>({
+  const { control, handleSubmit, watch } = useForm<FormData>({
     defaultValues: {
       title: '',
-      price: '',
+      price: 0,
       description: '',
       category: '',
       image: '',
@@ -68,36 +54,38 @@ const AddProductScreen = () => {
 
   const imageValue = watch('image');
 
-  const onSubmit = (data: FormData) => {
-    dispatch(addProductStart(data));
-  };
+  const onSubmit = async (data: FormData) => {
+    try {
+      // Trim and validate data
+      if (
+        !data.title?.trim() ||
+        !data.description?.trim() ||
+        !data.image?.trim() ||
+        !data.category
+      ) {
+        Alert.alert('Error', 'Please fill all fields');
+        return;
+      }
 
-  useEffect(() => {
-    if (addProductState.addProductStatus === 'succeeded') {
-      dispatch(fetchProductsStart());
+      const price = parseFloat(data.price.toString());
+      if (isNaN(price) || price <= 0) {
+        Alert.alert('Error', 'Please enter a valid price');
+        return;
+      }
 
-      Alert.alert('Success', 'Product added successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            reset();
-            setImageMode('url');
-            setValue('image', '');
-            dispatch(resetAddProductState());
-
-            navigation.goBack();
-          },
-        },
-      ]);
+      await addProduct({
+        ...data,
+        title: data.title.trim(),
+        description: data.description.trim(),
+        price: price,
+      }).unwrap();
+      Alert.alert('Success', 'Product added successfully!');
+      navigation.goBack();
+    } catch (error: any) {
+      console.error('Add product error:', error);
+      Alert.alert('Error', error?.data?.message || 'Failed to add product');
     }
-  }, [
-    addProductState.addProductStatus,
-    dispatch,
-    navigation,
-    reset,
-    setValue,
-    setImageMode,
-  ]);
+  };
 
   const handleUploadFromDevice = async (onChange: (uri: string) => void) => {
     const options: ImageLibraryOptions = {
@@ -126,7 +114,7 @@ const AddProductScreen = () => {
   };
 
   const handleRemoveImage = () => {
-    setValue('image', '');
+    watch('image', '');
   };
 
   return (
@@ -146,7 +134,7 @@ const AddProductScreen = () => {
             <View style={styles.field}>
               <Text style={styles.label}>Product Name</Text>
               <TextInput
-                style={[styles.input, errors.title && styles.inputError]}
+                style={[styles.input]}
                 placeholder="Enter product name"
                 placeholderTextColor="#9CA3AF"
                 onBlur={onBlur}
@@ -156,9 +144,6 @@ const AddProductScreen = () => {
             </View>
           )}
         />
-        {errors.title && (
-          <Text style={styles.errorText}>{errors.title.message}</Text>
-        )}
 
         <Controller
           control={control}
@@ -168,20 +153,17 @@ const AddProductScreen = () => {
             <View style={styles.field}>
               <Text style={styles.label}>Price</Text>
               <TextInput
-                style={[styles.input, errors.price && styles.inputError]}
+                style={[styles.input]}
                 placeholder="Enter price"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
                 onBlur={onBlur}
                 onChangeText={onChange}
-                value={value}
+                value={value.toString()}
               />
             </View>
           )}
         />
-        {errors.price && (
-          <Text style={styles.errorText}>{errors.price.message}</Text>
-        )}
 
         <Controller
           control={control}
@@ -191,11 +173,7 @@ const AddProductScreen = () => {
             <View style={styles.field}>
               <Text style={styles.label}>Description</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  errors.description && styles.inputError,
-                ]}
+                style={[styles.input, styles.textArea]}
                 placeholder="Enter product description"
                 placeholderTextColor="#9CA3AF"
                 multiline
@@ -207,9 +185,6 @@ const AddProductScreen = () => {
             </View>
           )}
         />
-        {errors.description && (
-          <Text style={styles.errorText}>{errors.description.message}</Text>
-        )}
 
         <Controller
           control={control}
@@ -234,9 +209,6 @@ const AddProductScreen = () => {
             </View>
           )}
         />
-        {errors.category && (
-          <Text style={styles.errorText}>{errors.category.message}</Text>
-        )}
 
         <View style={styles.field}>
           <Text style={styles.label}>Product Image</Text>
@@ -281,7 +253,7 @@ const AddProductScreen = () => {
               rules={{ required: 'Image is required' }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
-                  style={[styles.input, errors.image && styles.inputError]}
+                  style={[styles.input]}
                   placeholder="Paste image URL"
                   placeholderTextColor="#9CA3AF"
                   autoCapitalize="none"
@@ -306,9 +278,6 @@ const AddProductScreen = () => {
               )}
             />
           )}
-          {errors.image && (
-            <Text style={styles.errorText}>{errors.image.message}</Text>
-          )}
         </View>
 
         {imageValue ? (
@@ -326,15 +295,12 @@ const AddProductScreen = () => {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            addProductState.loading && styles.submitButtonDisabled,
+            isLoading && styles.submitButtonDisabled,
           ]}
-          onPress={handleSubmit(onSubmit, errors => {
-            console.log('Form invalid:', errors);
-            Alert.alert('Validation Error', 'Please fill all required fields');
-          })}
-          disabled={addProductState.loading}
+          onPress={handleSubmit(onSubmit)}
+          disabled={isLoading}
         >
-          {addProductState.loading ? (
+          {isLoading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.submitButtonText}>Add Product</Text>

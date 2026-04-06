@@ -1,28 +1,24 @@
-import { FlatList, View, Image, Text, TouchableOpacity } from 'react-native';
+import {
+  FlatList,
+  View,
+  Image,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchProductsStart } from '../../../store/slices/addProductSlice';
+import { useSelector } from 'react-redux';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-// import { PRODUCTS } from '../../../utils/contants';
 import { useNavigation } from '@react-navigation/native';
+import { useGetProductsQuery } from '../../../services/api';
 import { HeaderScreen } from '../Header/HeaderScreen';
 import { styles } from './HomeStyles';
-import { useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import type { RootState } from '../../../store/store';
 
 const HomeScreen = ({}) => {
   const navigation = useNavigation<any>();
-  const authUser = useSelector((state: any) => state.auth.user);
-  const dispatch = useDispatch();
-  const addProductState = useSelector(
-    (state: any) => state.addProduct.products,
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      dispatch(fetchProductsStart());
-    }, [dispatch]),
-  );
+  const authUser = useSelector((state: RootState) => state.auth.user);
+  const { data: products = [], isLoading } = useGetProductsQuery();
 
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -41,9 +37,45 @@ const HomeScreen = ({}) => {
   };
 
   const getFullName = () => {
-    if (!authUser) return '';
+    if (!authUser || !authUser.firstName || !authUser.lastName) {
+      return 'User';
+    }
     return `${authUser.firstName} ${authUser.lastName}`;
   };
+
+  const renderProduct = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => navigation.navigate('detailsScreen', { product: item })}
+    >
+      <View style={styles.Imgcontainer}>
+        <Image source={{ uri: item.image }} style={styles.image} />
+      </View>
+
+      <View style={styles.contentBox}>
+        <Text style={styles.category}>{item.category}</Text>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.title || item.name}
+        </Text>
+        <Text style={styles.desc} numberOfLines={2}>
+          {item.description}
+        </Text>
+
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <HeaderScreen />
+        <ActivityIndicator size="large" color="#007AFF" style={{ flex: 1 }} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -60,37 +92,12 @@ const HomeScreen = ({}) => {
         </View>
       )}
       <FlatList
-        data={addProductState || []}
+        data={products}
         showsVerticalScrollIndicator={false}
-        keyExtractor={item => item._id || item.id}
+        keyExtractor={item => item._id}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() =>
-              navigation.navigate('detailsScreen', { product: item })
-            }
-          >
-            <View style={styles.Imgcontainer}>
-              <Image source={{ uri: item.image }} style={styles.image} />
-            </View>
-
-            <View style={styles.contentBox}>
-              <Text style={styles.category}>{item.category}</Text>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.title || item.name}
-              </Text>
-              <Text style={styles.desc} numberOfLines={2}>
-                {item.description}
-              </Text>
-
-              <View style={styles.priceRow}>
-                <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        )}
+        renderItem={renderProduct}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.empty}> No products added yet!</Text>

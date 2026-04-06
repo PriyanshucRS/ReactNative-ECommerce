@@ -7,35 +7,41 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { addToCartStart, selectedItems } from '../../../store/slices/cartSlice';
+import { RouteProp } from '@react-navigation/native';
+import { useAddToCartMutation } from '../../../services/api';
 import { styles } from './DetailsStyles';
 
-const DetailsScreen = ({ route }: any) => {
+interface Product {
+  _id: string;
+  image: string;
+  category: string;
+  title: string;
+  name: string;
+  price: number;
+  description: string;
+}
+
+type DetailsScreenRouteProp = RouteProp<
+  { detailsScreen: { product: Product } },
+  'detailsScreen'
+>;
+
+const DetailsScreen = ({ route }: { route: DetailsScreenRouteProp }) => {
   const { product } = route.params;
-  const dispatch = useDispatch();
-  const cartItems = useSelector(selectedItems);
+  const [addToCart] = useAddToCartMutation();
 
-  const handleAddToCart = () => {
-    const productId = product.id || product._id;
+  const handleAddToCart = async () => {
+    try {
+      if (!product || !product._id) {
+        Alert.alert('Error', 'Invalid product');
+        return;
+      }
 
-    const existingItem = cartItems.find(
-      (item: any) => (item.productId || item._id || item.id) === productId,
-    );
-
-    if (existingItem) {
-      Alert.alert(
-        'Already in Cart',
-        `${product.title || product.name} is already in cart (Quantity: ${
-          existingItem.quantity
-        }). Quantity updated!`,
-      );
-    }
-
-    dispatch(addToCartStart(product));
-
-    if (!existingItem) {
-      Alert.alert('Added!', `${product.title || product.name} added to cart.`);
+      await addToCart({ productId: product._id, quantity: 1 }).unwrap();
+      Alert.alert('Success', `${product.title || product.name} added to cart!`);
+    } catch (error: any) {
+      console.error('Add to cart error:', error);
+      Alert.alert('Error', error?.data?.message || 'Failed to add to cart');
     }
   };
 
@@ -48,7 +54,7 @@ const DetailsScreen = ({ route }: any) => {
 
         <View style={styles.infoBox}>
           <Text style={styles.category}>{product.category}</Text>
-          <Text style={styles.title}>{product.name}</Text>
+          <Text style={styles.title}>{product.name || product.title}</Text>
 
           <Text style={styles.price}>₹{product.price.toLocaleString()}</Text>
 

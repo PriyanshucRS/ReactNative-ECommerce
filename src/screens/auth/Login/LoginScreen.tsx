@@ -7,62 +7,62 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 
 import { styles } from './LoginStyles';
 import { useForm, Controller } from 'react-hook-form';
-import { useDispatch } from 'react-redux';
-import { loginRequest, clearError } from '../../../store/slices/authSlice';
-import { useSelector } from 'react-redux';
-
+import { useLoginMutation } from '../../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect } from 'react';
+
+interface LoginData {
+  email: string;
+  password: string;
+}
 
 const LoginScreen = () => {
   const navigation = useNavigation<any>();
-  const dispatch = useDispatch();
-  const authLoading = useSelector((state: any) => state.auth.loading);
-  const authError = useSelector((state: any) => state.auth.error);
-  const authUser = useSelector((state: any) => state.auth.user);
-  // console.log('LoginScreen authUser:', authUser); // Debug
-
+  const [login, { isLoading }] = useLoginMutation();
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const passwordInputRef = useRef<any>(null);
 
   const {
     control,
     handleSubmit,
-    reset,
     formState: { errors },
-  } = useForm({
+  } = useForm<LoginData>({
     defaultValues: {
       email: '',
       password: '',
     },
   });
 
-  useEffect(() => {
-    if (authError && !authLoading) {
-      Alert.alert('Invalid Credentials');
-      dispatch(clearError());
-    }
-    if (authUser && !authLoading && !authError) {
+  const onSubmit = async (data: LoginData) => {
+    try {
+      const trimmedData = {
+        email: data.email.trim().toLowerCase(),
+        password: data.password.trim(),
+      };
+
+      if (!trimmedData.email || !trimmedData.password) {
+        Alert.alert('Error', 'Email and password cannot be empty');
+        return;
+      }
+
+      const result = await login(trimmedData).unwrap();
+      // Store token and user
+      await AsyncStorage.setItem('token', result.token);
+      await AsyncStorage.setItem('userVerified', 'true');
       Alert.alert('Success', 'Logged in successfully!');
-      AsyncStorage.setItem('userVerified', 'true');
-      reset();
       navigation.replace('MainDrawer');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      Alert.alert('Error', err?.data?.message || 'Invalid credentials');
     }
-  }, [authError, authUser, authLoading, dispatch, reset, navigation]);
+  };
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
-  };
-
-  const loginSubmit = (data: any) => {
-    dispatch(loginRequest(data));
   };
 
   return (
@@ -102,10 +102,9 @@ const LoginScreen = () => {
           )}
         />
         {errors.email && (
-          <Text style={styles.errorText}>{errors.email.message as string}</Text>
+          <Text style={styles.errorText}>{errors.email.message}</Text>
         )}
 
-        {/* Password Field */}
         <Controller
           control={control}
           name="password"
@@ -121,26 +120,16 @@ const LoginScreen = () => {
               ]}
             >
               <TextInput
-                ref={passwordInputRef}
                 style={styles.passwordInput}
                 placeholder="Enter your password"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showPassword}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => {
-                  setPasswordFocused(false);
-                  onBlur();
-                }}
+                onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
               />
               <TouchableOpacity
-                onPressIn={togglePasswordVisibility}
-                onPressOut={() => {
-                  if (passwordFocused) {
-                    passwordInputRef.current?.focus();
-                  }
-                }}
+                onPress={togglePasswordVisibility}
                 style={styles.iconButton}
               >
                 <Ionicons
@@ -153,18 +142,15 @@ const LoginScreen = () => {
           )}
         />
         {errors.password && (
-          <Text style={styles.errorText}>
-            {errors.password.message as string}
-          </Text>
+          <Text style={styles.errorText}>{errors.password.message}</Text>
         )}
 
-        {/* Buttons Section */}
         <TouchableOpacity
           style={styles.btn}
-          onPress={handleSubmit(loginSubmit)}
-          disabled={authLoading}
+          onPress={handleSubmit(onSubmit)}
+          disabled={isLoading}
         >
-          {authLoading ? (
+          {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.btnText}>Login</Text>

@@ -1,37 +1,30 @@
-const createSagaMiddleware = require('redux-saga').default;
-
 import { configureStore } from '@reduxjs/toolkit';
-
 import rootReducer from './rootReducer';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { persistReducer, persistStore } from 'redux-persist';
-import sagas from './rootSaga';
+import authApi from '../services/authApi';
+import productsApi from '../services/productsApi';
+import cartApi from '../services/cartApi';
 
 const persistConfig = {
   key: 'root',
-
   storage: AsyncStorage,
+  whitelist: ['auth', 'cart', 'addProduct'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
-const sagaMiddleware = createSagaMiddleware();
-
 const store = configureStore({
   reducer: persistedReducer,
-
   middleware: getDefaultMiddleware =>
-    getDefaultMiddleware({ serializableCheck: false }).concat(sagaMiddleware),
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }).concat(authApi.middleware, productsApi.middleware, cartApi.middleware),
 });
 
-sagaMiddleware.run(sagas);
-
 export type RootState = ReturnType<typeof store.getState>;
-
 export type AppDispatch = typeof store.dispatch;
 
-const persistedStore = persistStore(store);
+const persistor = persistStore(store);
 
-export { persistedStore, store };
+export { store, persistor };

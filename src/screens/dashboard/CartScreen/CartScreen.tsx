@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -7,23 +7,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
 import {
-  selectedItems,
-  fetchCartStart,
-  updateQuantityStart,
-  removeFromCartStart,
-} from '../../../store/slices/cartSlice';
+  useGetCartQuery,
+  useUpdateCartQuantityMutation,
+  useRemoveFromCartMutation,
+} from '../../../services/api';
 import { cartStyles } from './CartStyles';
 
 const CartScreen = () => {
-  const cartItems = useSelector(selectedItems);
-  const dispatch = useDispatch();
-  const cartState = useSelector((state: any) => state.cart);
-
-  useEffect(() => {
-    dispatch(fetchCartStart());
-  }, [dispatch]);
+  const cartQuery = useGetCartQuery();
+  const cartData: any = cartQuery.data;
+  const cartItems = Array.isArray(cartData) ? cartData : cartData?.items ?? [];
+  const isCartLoading = cartQuery.isLoading;
+  const [updateQuantity] = useUpdateCartQuantityMutation();
+  const [removeFromCart] = useRemoveFromCartMutation();
 
   const totalPrice = cartItems.reduce(
     (total: number, item: any) => total + item.price * item.quantity,
@@ -49,20 +46,19 @@ const CartScreen = () => {
         </Text>
 
         <View style={cartStyles.actionRow}>
-          {/* Plus/Minus Buttons */}
           <View style={cartStyles.counterContainer}>
             <TouchableOpacity
               style={cartStyles.btnAction}
-              onPress={() => {
+              onPress={async () => {
                 if (item.quantity > 1) {
-                  dispatch(
-                    updateQuantityStart({
-                      productId: item.productId,
-                      quantity: item.quantity - 1,
-                    }),
-                  );
+                  await updateQuantity({
+                    productId: item.productId || item._id,
+                    quantity: item.quantity - 1,
+                  });
                 } else {
-                  dispatch(removeFromCartStart({ productId: item.productId }));
+                  await removeFromCart({
+                    productId: item.productId || item._id,
+                  });
                 }
               }}
             >
@@ -73,24 +69,21 @@ const CartScreen = () => {
 
             <TouchableOpacity
               style={cartStyles.btnAction}
-              onPress={() =>
-                dispatch(
-                  updateQuantityStart({
-                    productId: item.productId,
-                    quantity: item.quantity + 1,
-                  }),
-                )
-              }
+              onPress={async () => {
+                await updateQuantity({
+                  productId: item.productId || item._id,
+                  quantity: item.quantity + 1,
+                });
+              }}
             >
               <Text style={cartStyles.btnText}>+</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Remove Button */}
           <TouchableOpacity
-            onPress={() =>
-              dispatch(removeFromCartStart({ productId: item.productId }))
-            }
+            onPress={async () => {
+              await removeFromCart({ productId: item.productId || item._id });
+            }}
             style={cartStyles.removeBtn}
           >
             <Text style={cartStyles.removeText}>Remove</Text>
@@ -99,6 +92,15 @@ const CartScreen = () => {
       </View>
     </View>
   );
+
+  if (isCartLoading) {
+    return (
+      <View style={cartStyles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Loading cart...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={cartStyles.container}>
@@ -116,7 +118,7 @@ const CartScreen = () => {
         }
       />
 
-      {cartItems.length > 0 && !cartState.loading && (
+      {cartItems.length > 0 && (
         <View style={cartStyles.footer}>
           <View style={cartStyles.totalRow}>
             <Text style={cartStyles.totalLabel}>Total Amount</Text>
@@ -124,12 +126,6 @@ const CartScreen = () => {
               ₹{totalPrice.toLocaleString()}
             </Text>
           </View>
-        </View>
-      )}
-      {cartState.loading && (
-        <View style={cartStyles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text>Loading cart...</Text>
         </View>
       )}
     </View>

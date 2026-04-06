@@ -6,22 +6,42 @@ import DrawerNavigator from './DrawerNavigator';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddProductScreen from '../screens/dashboard/AddProductScreen/AddProductScreen';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+
 const Stack = createStackNavigator();
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
 
 const AppNavigator = () => {
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
   useEffect(() => {
     const checkUserVerified = async () => {
-      const isUserVerified = await AsyncStorage.getItem('userVerified');
-
-      setInitialRoute(isUserVerified === 'true' ? 'MainDrawer' : 'loginScreen');
+      try {
+        const isUserVerified = await AsyncStorage.getItem('userVerified');
+        setInitialRoute(
+          isUserVerified === 'true' ? 'MainDrawer' : 'loginScreen',
+        );
+      } catch (error) {
+        console.error('Error checking user verification:', error);
+        setInitialRoute('loginScreen');
+      }
     };
     checkUserVerified();
   }, []);
 
   if (initialRoute === null) {
-    return null;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
   }
 
   return (

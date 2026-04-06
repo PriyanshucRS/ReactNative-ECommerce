@@ -23,6 +23,7 @@ app.use(
 
 app.use(express.json());
 
+app.use('/api/test', (req, res) => res.status(201).json({ message: 'Hello' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
@@ -30,10 +31,11 @@ app.use('/api/watchlist', watchlistRoutes);
 
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected successfully'));
+  .then(() => console.log('✅ MongoDB Connected successfully'))
+  .catch(error => console.error('MongoDB connection error:', error));
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
