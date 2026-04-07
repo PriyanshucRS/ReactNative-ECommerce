@@ -95,6 +95,15 @@ export const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
+  homeLink: {
+    marginTop: 10,
+  },
+  homeText: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   text: {
     color: colors.textSecondary,
     textAlign: 'center',

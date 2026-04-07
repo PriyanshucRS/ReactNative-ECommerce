@@ -1,18 +1,24 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import HomeScreen from '../screens/dashboard/HomeScreen/HomeScreen';
-import CartScreen from '../screens/dashboard/CartScreen/CartScreen';
-import AddProductScreen from '../screens/dashboard/AddProductScreen/AddProductScreen';
+import { useSelector } from 'react-redux';
+import HomeScreen from '../../screens/dashboard/HomeScreen/HomeScreen';
+import CartScreen from '../../screens/dashboard/CartScreen/CartScreen';
+import AddProductScreen from '../../screens/dashboard/AddProductScreen/AddProductScreen';
+import WatchlistScreen from '../../screens/dashboard/WatchlistScreen/WatchlistScreen';
 import {
   CustomDrawerContent,
   HomeDrawerIcon,
   CartDrawerIcon,
   AddProductIcon,
+  WatchlistDrawerIcon,
 } from './DrawerContent';
+import type { RootState } from '../../store/store';
 
 const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
+  const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
+
   return (
     <Drawer.Navigator
       drawerContent={CustomDrawerContent}
@@ -44,12 +50,22 @@ const DrawerNavigator = () => {
         }}
       />
 
+      {isLoggedIn && (
+        <Drawer.Screen
+          name="AddProductScreen"
+          component={AddProductScreen}
+          options={{
+            title: 'AddProduct',
+            drawerIcon: AddProductIcon,
+          }}
+        />
+      )}
       <Drawer.Screen
-        name="AddProductScreen"
-        component={AddProductScreen}
+        name="watchlistScreen"
+        component={WatchlistScreen}
         options={{
-          title: 'AddProduct',
-          drawerIcon: AddProductIcon,
+          title: 'Watchlist',
+          drawerIcon: WatchlistDrawerIcon,
         }}
       />
     </Drawer.Navigator>

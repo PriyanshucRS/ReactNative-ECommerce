@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import { cartApi } from '../services/api';
 
 interface CartItem {
@@ -20,6 +20,13 @@ interface CartState {
   error: string | null;
 }
 
+const extractCartItems = (payload: any): CartItem[] => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.cart?.items)) return payload.cart.items;
+  return [];
+};
+
 const initialState: CartState = {
   items: [],
   loading: false,
@@ -29,55 +36,31 @@ const initialState: CartState = {
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
-  reducers: {
-    increment: (state, action: PayloadAction<string>) => {
-      const item = state.items.find(i => i.id === action.payload);
-      if (item) {
-        item.quantity += 1;
-      }
-    },
-    decrement: (state, action: PayloadAction<string>) => {
-      const item = state.items.find(i => i.id === action.payload);
-      if (item) {
-        if (item.quantity > 1) {
-          item.quantity -= 1;
-        } else {
-          state.items = state.items.filter(i => i.id !== action.payload);
-        }
-      }
-    },
-    removeCart: (state, action: PayloadAction<string>) => {
-      state.items = state.items.filter(item => item.id !== action.payload);
-    },
-    clearCart: state => {
-      state.items = [];
-    },
-  },
+  reducers: {},
   extraReducers: builder => {
     builder
       .addMatcher(cartApi.endpoints.getCart.matchFulfilled, (state, action) => {
-        state.items = (action.payload as any) || [];
+        state.items = extractCartItems(action.payload);
         state.loading = false;
       })
       .addMatcher(
         cartApi.endpoints.addToCart.matchFulfilled,
         (state, action) => {
-          state.items = [...state.items, action.payload as any];
+          state.items = extractCartItems(action.payload);
           state.loading = false;
         },
       )
       .addMatcher(
         cartApi.endpoints.updateCartQuantity.matchFulfilled,
         (state, action) => {
-          // Update quantity
+          state.items = extractCartItems(action.payload);
           state.loading = false;
         },
       )
       .addMatcher(
         cartApi.endpoints.removeFromCart.matchFulfilled,
         (state, action) => {
-          const productId = (action.meta.arg.originalArgs as any).productId;
-          state.items = state.items.filter(item => item._id !== productId);
+          state.items = extractCartItems(action.payload);
           state.loading = false;
         },
       );
@@ -85,7 +68,4 @@ const cartSlice = createSlice({
 });
 
 export const selectedItems = (state: any) => state.cart.items;
-
-export const { increment, decrement, removeCart, clearCart } =
-  cartSlice.actions;
 export default cartSlice.reducer;

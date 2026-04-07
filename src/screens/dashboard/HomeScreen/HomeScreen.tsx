@@ -5,20 +5,37 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useGetProductsQuery } from '../../../services/api';
+import {
+  useGetWishlistQuery,
+  useToggleWishlistMutation,
+} from '../../../services/wishlistApi';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  toggleFavorite,
+  setFavorites,
+  selectFavorites,
+} from '../../../slices/wishlistSlice';
+import type { RootState } from '../../../store/store';
 import { HeaderScreen } from '../Header/HeaderScreen';
 import { styles } from './HomeStyles';
-import type { RootState } from '../../../store/store';
+import { getFallbackKey, getProductId } from '../../../utils/helpers';
+import BottomTabs from '../../../components/BottomTabs';
 
-const HomeScreen = ({}) => {
+const HomeScreen = () => {
+  const dispatch = useDispatch();
+  const [toggleWishlist] = useToggleWishlistMutation();
+  const { data: wishlistData } = useGetWishlistQuery();
+  const favorites = useSelector(selectFavorites);
   const navigation = useNavigation<any>();
   const authUser = useSelector((state: RootState) => state.auth.user);
-  const { data: products = [], isLoading } = useGetProductsQuery();
+  const { data: productsData, isLoading } = useGetProductsQuery();
+  const products = productsData || [];
 
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -31,6 +48,12 @@ const HomeScreen = ({}) => {
       return () => clearTimeout(timer);
     }
   }, [authUser]);
+
+  useEffect(() => {
+    if (!wishlistData) return;
+    const favoriteIds = wishlistData.map(getProductId).filter(Boolean);
+    dispatch(setFavorites(favoriteIds));
+  }, [wishlistData, dispatch]);
 
   const handleWelcomeDismiss = () => {
     setShowWelcome(false);
@@ -48,10 +71,50 @@ const HomeScreen = ({}) => {
       style={styles.card}
       onPress={() => navigation.navigate('detailsScreen', { product: item })}
     >
+      <TouchableOpacity
+        style={styles.chatIconContainer}
+        onPress={async e => {
+          e.stopPropagation();
+          if (!authUser) {
+            Alert.alert(
+              'Login Required',
+              'Watchlist me add karne ke liye pehle login karein.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'OK',
+                  onPress: () => navigation.getParent()?.navigate('loginScreen'),
+                },
+              ],
+            );
+            return;
+          }
+          const productId = getProductId(item);
+          try {
+            await toggleWishlist({ productId }).unwrap();
+            dispatch(toggleFavorite(productId));
+          } catch {
+            // Ignore noisy console logging in production UI flow.
+          }
+        }}
+      >
+        <Ionicons
+          name={
+            authUser && favorites.includes(getProductId(item))
+              ? 'heart'
+              : 'heart-outline'
+          }
+          style={styles.chatIcon}
+          color={
+            authUser && favorites.includes(getProductId(item))
+              ? '#FF4444'
+              : undefined
+          }
+        />
+      </TouchableOpacity>
       <View style={styles.Imgcontainer}>
         <Image source={{ uri: item.image }} style={styles.image} />
       </View>
-
       <View style={styles.contentBox}>
         <Text style={styles.category}>{item.category}</Text>
         <Text style={styles.name} numberOfLines={1}>
@@ -94,7 +157,8 @@ const HomeScreen = ({}) => {
       <FlatList
         data={products}
         showsVerticalScrollIndicator={false}
-        keyExtractor={item => item._id}
+        contentContainerStyle={{ paddingBottom: 86 }}
+        keyExtractor={getFallbackKey}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
         renderItem={renderProduct}
@@ -104,6 +168,7 @@ const HomeScreen = ({}) => {
           </View>
         }
       />
+      <BottomTabs activeTab="home" />
     </View>
   );
 };

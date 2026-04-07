@@ -7,46 +7,82 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { RouteProp } from '@react-navigation/native';
-import { useAddToCartMutation } from '../../../services/api';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import type { StackScreenProps } from '@react-navigation/stack';
+import { useAddToCartMutation, useGetCartQuery } from '../../../services/api';
 import { styles } from './DetailsStyles';
+import { getProductId } from '../../../utils/helpers';
+import type { RootStackParamList } from '../../../navigations/types';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../../store/store';
+import BottomTabs from '../../../components/BottomTabs';
 
-interface Product {
-  _id: string;
-  image: string;
-  category: string;
-  title: string;
-  name: string;
-  price: number;
-  description: string;
-}
+type DetailsScreenProps = StackScreenProps<RootStackParamList, 'detailsScreen'>;
 
-type DetailsScreenRouteProp = RouteProp<
-  { detailsScreen: { product: Product } },
-  'detailsScreen'
->;
-
-const DetailsScreen = ({ route }: { route: DetailsScreenRouteProp }) => {
+const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
   const { product } = route.params;
   const [addToCart] = useAddToCartMutation();
+  const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
+  const { data: cartItems = [] } = useGetCartQuery(undefined, {
+    skip: !isLoggedIn,
+  });
+
+  const productId = getProductId(product);
+  const existingCartItem = cartItems.find(
+    (item: any) => getProductId(item) === productId,
+  );
+  const existingQuantity = isLoggedIn ? existingCartItem?.quantity || 0 : 0;
 
   const handleAddToCart = async () => {
     try {
-      if (!product || !product._id) {
+      if (!product || !productId) {
         Alert.alert('Error', 'Invalid product');
         return;
       }
 
-      await addToCart({ productId: product._id, quantity: 1 }).unwrap();
+      if (!isLoggedIn) {
+        Alert.alert(
+          'Login Required',
+          'Add to cart karne ke liye pehle login karein.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('loginScreen'),
+            },
+          ],
+        );
+        return;
+      }
+
+      if (existingQuantity > 0) {
+        Alert.alert(
+          'Already in Cart',
+          `${product.title || product.name} is already in your cart (Qty: ${existingQuantity}).`,
+        );
+        return;
+      }
+
+      await addToCart({ productId, quantity: 1 }).unwrap();
       Alert.alert('Success', `${product.title || product.name} added to cart!`);
     } catch (error: any) {
-      console.error('Add to cart error:', error);
-      Alert.alert('Error', error?.data?.message || 'Failed to add to cart');
+      const errorMessage =
+        error?.data?.message ||
+        (typeof error?.data === 'string' ? error.data : undefined) ||
+        error?.error ||
+        'Failed to add to cart';
+      Alert.alert('Error', errorMessage);
     }
   };
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+      >
+        <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+      </TouchableOpacity>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.imageBox}>
           <Image source={{ uri: product.image }} style={styles.image} />
@@ -67,9 +103,14 @@ const DetailsScreen = ({ route }: { route: DetailsScreenRouteProp }) => {
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.button} onPress={handleAddToCart}>
-          <Text style={styles.buttonText}>Add to Cart</Text>
+          <Text style={styles.buttonText}>
+            {existingQuantity > 0
+              ? `Already in Cart (${existingQuantity})`
+              : 'Add to Cart'}
+          </Text>
         </TouchableOpacity>
       </View>
+      <BottomTabs />
     </View>
   );
 };

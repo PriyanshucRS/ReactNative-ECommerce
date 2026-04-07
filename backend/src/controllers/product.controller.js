@@ -1,60 +1,67 @@
-const productService = require("../service/product.service");
+const productService = require('../service/product.service');
+const getUserIdFromRequest = req => req.user?.id || req.user?.uid || req.user?.userId;
 
 exports.getProducts = async (req, res) => {
   try {
-    const products = await productService.getAllProducts(req.query);
-    res.status(200).json(products);
+    const { category, maxPrice } = req.query;
+    const filters = {};
+    if (category) filters.category = category;
+    if (maxPrice) filters.maxPrice = maxPrice;
+
+    const products = await productService.getAllProducts(filters);
+    res.json({ success: true, products });
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-// exports.getMyProducts = async (req, res) => {
-//   try {
-//     console.log("🔍 Fetching products for user:", req.user.id);
-//     const products = await productService.getProductsByUserId(req.user.id);
-//     res.status(200).json(products);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-exports.addProduct = async (req, res) => {
-  try {
-    console.log("📝 Add Product Request:", req.body);
-    console.log("👤 User ID:", req.user.id);
-    
-    const userId = req.user.id;
-    const newProduct = await productService.createProduct(req.body, userId);
-    
-    console.log("✅ Product Created:", newProduct);
-    res.status(201).json(newProduct);
-  } catch (error) {
-    console.error("❌ Error in addProduct:", error.message);
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
 exports.getProductDetail = async (req, res) => {
   try {
-    const product = await productService.getProductById(req.params.id);
-    res.status(200).json(product);
+    const { id } = req.params;
+    const product = await productService.getProductById(id);
+    res.json({ success: true, product });
   } catch (error) {
-    res.status(404).json({ message: error.message });
+    res.status(404).json({ success: false, message: error.message });
+  }
+};
+
+exports.addProduct = async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized user' });
+    }
+    const product = await productService.createProduct(req.body, userId);
+    res.status(201).json({ success: true, product });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
 exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-    const deletedProduct = await productService.deleteProduct(id, userId);
-    if (!deletedProduct) return res.status(404).json({ message: "Product not found" });
-    res.status(200).json({ message: "Product deleted successfully", product: deletedProduct });
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized user' });
+    }
+    const deleted = await productService.deleteProduct(id, userId);
+    res.json({ success: true, message: 'Product deleted', product: deleted });
   } catch (error) {
-    const statusCode = error.message.includes("only delete") ? 401 : 400;
-    res.status(statusCode).json({ message: error.message });
+    const status = error.message.includes('own products') ? 403 : 400;
+    res.status(status).json({ success: false, message: error.message });
   }
 };
 
+exports.getUserProducts = async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized user' });
+    }
+    const products = await productService.getProductsByUserId(userId);
+    res.json({ success: true, products });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};

@@ -1,51 +1,45 @@
-const WatchList = require("../models/Wishlist");
-const Product = require("../models/Product");
+const { db } = require('./firebaseService');
+const productsRef = db.collection('products');
+const watchlistRef = db.collection('watchlist');
 
-const getWatchlistByUser = async (userId) => {
-  return await WatchList.findOne({ userId });
+const resolveProductDocumentById = async productId => {
+  if (!productId) return null;
+
+  const productDoc = await productsRef.doc(productId).get();
+  if (!productDoc.exists) return null;
+  return { id: productDoc.id, data: productDoc.data() };
 };
 
+// Get wishlist by user
+const getWatchlistByUser = async userId => {
+  const watchlistDoc = await watchlistRef.doc(userId).get();
+  if (watchlistDoc.exists) return watchlistDoc.data();
+  return { items: [] };
+};
+
+// Toggle wishlist item
 const toggleWishlist = async (userId, productId) => {
-  let watchlist = await WatchList.findOne({ userId });
+  const resolvedProduct = await resolveProductDocumentById(productId);
+  if (!resolvedProduct) throw new Error('Product not found');
 
-  if (!watchlist) {
-    const product = await Product.findById(productId);
-    if (!product) throw new Error("Product not found");
+  const product = resolvedProduct.data;
+  const resolvedProductId = resolvedProduct.id;
 
-    watchlist = new WatchList({
-      userId,
-      items: [
-        {
-          productId,
-          title: product.title,
-          price: product.price,
-          image: product.image,
-          category: product.category,
-          description: product.description,
-        },
-      ],
-    });
-    return await watchlist.save();
+  const wishlistDoc = await watchlistRef.doc(userId).get();
+  let items = [];
+
+  if (wishlistDoc.exists) {
+    items = wishlistDoc.data().items || [];
   }
 
-  const itemIndex = watchlist.items.findIndex(
-    (item) => item.productId.toString() === productId,
-  );
-
+  const itemIndex = items.findIndex(item => item.productId === resolvedProductId);
   if (itemIndex > -1) {
-    watchlist.items.splice(itemIndex, 1);
-    
-    
-    if (watchlist.items.length === 0) {
-      await WatchList.findByIdAndDelete(watchlist._id);
-      return { items: [] };
-    }
+    // Remove from wishlist
+    items.splice(itemIndex, 1);
   } else {
-    const product = await Product.findById(productId);
-    if (!product) throw new Error("Product not found");
-
-    watchlist.items.push({
-      productId,
+    // Add to wishlist
+    items.push({
+      productId: resolvedProductId,
       title: product.title,
       price: product.price,
       image: product.image,
@@ -54,7 +48,16 @@ const toggleWishlist = async (userId, productId) => {
     });
   }
 
-  return await watchlist.save();
+  if (items.length === 0) {
+    await watchlistRef.doc(userId).delete();
+  } else {
+    await watchlistRef.doc(userId).set({ items, updatedAt: new Date() });
+  }
+
+  return { items };
 };
 
-module.exports = { getWatchlistByUser, toggleWishlist };
+module.exports = {
+  getWatchlistByUser,
+  toggleWishlist,
+};

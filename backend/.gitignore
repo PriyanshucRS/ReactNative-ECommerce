@@ -9,3 +9,20 @@ yarn-error.log*
 .DS_Store
 dist/
 build/
+
+# Environment files
+.env.*
+!.env.example
+
+# Runtime and temp artifacts
+coverage/
+tmp/
+temp/
+
+# Sensitive backend credentials
+firebaseServiceAccountKey.json
+firebaseServiceAccountKey*.json
+*serviceAccount*.json
+
+# Ignore nested gitignore files
+**/.gitignore

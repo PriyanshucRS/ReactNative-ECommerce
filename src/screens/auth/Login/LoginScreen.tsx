@@ -10,7 +10,6 @@ import {
 import React, { useState } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-
 import { styles } from './LoginStyles';
 import { useForm, Controller } from 'react-hook-form';
 import { useLoginMutation } from '../../../services/api';
@@ -49,14 +48,12 @@ const LoginScreen = () => {
         return;
       }
 
-      const result = await login(trimmedData).unwrap();
+      await login(trimmedData).unwrap();
       // Store token and user
-      await AsyncStorage.setItem('token', result.token);
       await AsyncStorage.setItem('userVerified', 'true');
       Alert.alert('Success', 'Logged in successfully!');
       navigation.replace('MainDrawer');
     } catch (err: any) {
-      console.error('Login error:', err);
       Alert.alert('Error', err?.data?.message || 'Invalid credentials');
     }
   };
@@ -162,6 +159,13 @@ const LoginScreen = () => {
           style={styles.new}
         >
           <Text style={styles.text1}>New here? Go to Register</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => navigation.replace('MainDrawer')}
+          style={styles.homeLink}
+        >
+          <Text style={styles.homeText}>Go to Home</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

@@ -36,23 +36,14 @@ const addProductSlice = createSlice({
     },
   },
   extraReducers: builder => {
-    builder
-      .addMatcher(
-        productsApi.endpoints.getProducts.matchFulfilled,
-        (state, action) => {
-          state.products = (action.payload as any) || [];
-          state.loading = false;
-          state.fetchStatus = 'succeeded';
-        },
-      )
-      .addMatcher(
-        productsApi.endpoints.addProduct.matchFulfilled,
-        (state, action) => {
-          state.products.push(action.payload as any);
-          state.loading = false;
-          state.addProductStatus = 'succeeded';
-        },
-      );
+    builder.addMatcher(
+      productsApi.endpoints.getProducts.matchFulfilled,
+      (state, action) => {
+        state.products = (action.payload as any) || [];
+        state.loading = false;
+        state.fetchStatus = 'succeeded';
+      },
+    );
   },
 });
 

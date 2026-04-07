@@ -8,7 +8,17 @@ export const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   header: {
     fontSize: 28,
@@ -128,6 +138,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 14,
     marginTop: 16,
+    marginBottom: 76,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -19,6 +19,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useNavigation } from '@react-navigation/native';
 import { useAddProductMutation } from '../../../services/api';
 import { styles } from './AddProductStyles';
+import BottomTabs from '../../../components/BottomTabs';
 
 interface FormData {
   title: string;
@@ -82,8 +83,12 @@ const AddProductScreen = () => {
       Alert.alert('Success', 'Product added successfully!');
       navigation.goBack();
     } catch (error: any) {
-      console.error('Add product error:', error);
-      Alert.alert('Error', error?.data?.message || 'Failed to add product');
+      const errorMessage =
+        error?.data?.message ||
+        (typeof error?.data === 'string' ? error.data : undefined) ||
+        error?.error ||
+        'Failed to add product';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -124,6 +129,12 @@ const AddProductScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.navigate('homeScreen')}
+        >
+          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
         <Text style={styles.header}>Add New Product</Text>
 
         <Controller
@@ -307,6 +318,7 @@ const AddProductScreen = () => {
           )}
         </TouchableOpacity>
       </ScrollView>
+      <BottomTabs activeTab="add" />
     </View>
   );
 };

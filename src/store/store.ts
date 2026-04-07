@@ -5,11 +5,12 @@ import { persistReducer, persistStore } from 'redux-persist';
 import authApi from '../services/authApi';
 import productsApi from '../services/productsApi';
 import cartApi from '../services/cartApi';
+import wishlistApi from '../services/wishlistApi';
 
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth', 'cart', 'addProduct'],
+  whitelist: ['auth', 'cart', 'addProduct', 'wishlist'],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -19,7 +20,12 @@ const store = configureStore({
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(authApi.middleware, productsApi.middleware, cartApi.middleware),
+    }).concat(
+      authApi.middleware,
+      productsApi.middleware,
+      cartApi.middleware,
+      wishlistApi.middleware,
+    ),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

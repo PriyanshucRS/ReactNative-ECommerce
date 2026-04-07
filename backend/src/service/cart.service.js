@@ -1,104 +1,123 @@
-const Cart = require("../models/Cart");
-const Product = require("../models/Product");
+const { db } = require('./firebaseService');
 
+// Firestore references
+const cartsRef = db.collection('carts');
+const productsRef = db.collection('products');
 
+const calculateTotal = items =>
+  items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-const getCartByUserId = async (userId) => {
-  const cart = await Cart.findOne({ userId });
-  if (!cart) return { items: [], totalPrice: 0 };
-  return { items: cart.items, totalPrice: calculateTotal(cart.items) };
+const resolveProductDocumentById = async productId => {
+  if (!productId) return null;
+
+  const productDoc = await productsRef.doc(productId).get();
+  if (!productDoc.exists) return null;
+  return { id: productDoc.id, data: productDoc.data() };
 };
 
-const addItemToCart = async (userId, productId, quantity) => {
-  const product = await Product.findById(productId);
-  if (!product) throw new Error("Product not found");
-
-  let cart = await Cart.findOne({ userId });
-
-  if (!cart) {
-    cart = new Cart({
-      userId,
-      items: [
-        {
-          productId,
-          title: product.title,
-          price: product.price,
-          image: product.image,
-          category: product.category,
-          description: product.description,
-          quantity,
-        },
-      ],
-    });
-  } else {
-    const itemIndex = cart.items.findIndex(
-      (item) => item.productId.toString() === productId,
-    );
-    if (itemIndex > -1) {
-      cart.items[itemIndex].quantity += quantity;
-    } else {
-      cart.items.push({
-        productId,
-        title: product.title,
-        price: product.price,
-        image: product.image,
-        category: product.category,
-        description: product.description,
-        quantity,
+// Clean invalid products from cart items
+const cleanInvalidProducts = async items => {
+  const validItems = [];
+  for (const item of items) {
+    const resolvedProduct = await resolveProductDocumentById(item.productId);
+    if (resolvedProduct) {
+      validItems.push({
+        ...item,
+        productId: resolvedProduct.id,
       });
     }
   }
-  const savedCart = await cart.save();
+  return validItems;
+};
+
+// Get cart by user ID
+const getCartByUserId = async userId => {
+  const doc = await cartsRef.doc(userId).get();
+  if (!doc.exists) return { items: [], totalPrice: 0 };
+  let cart = doc.data();
+  let items = cart?.items || [];
+
+  // Clean invalid products
+  items = await cleanInvalidProducts(items);
+
+  // Persist cleaned cart
+  await cartsRef.doc(userId).set({
+    items,
+    updatedAt: new Date(),
+  });
+
   return {
-    items: savedCart.items,
-    totalPrice: calculateTotal(savedCart.items),
+    items,
+    totalPrice: calculateTotal(items),
   };
 };
-const calculateTotal = (items) => {
-  return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-};
 
-const updateItemQuantity = async (userId, productId, quantity) => {
-  const cart = await Cart.findOne({ userId });
-  if (!cart) throw new Error("Cart not found");
+// Add item to cart
+const addItemToCart = async (userId, productId, quantity) => {
+  const resolvedProduct = await resolveProductDocumentById(productId);
+  if (!resolvedProduct) throw new Error('Product not found');
 
-  const itemIndex = cart.items.findIndex(
-    (item) => item.productId.toString() === productId,
-  );
+  const product = resolvedProduct.data;
+  const resolvedProductId = resolvedProduct.id;
+  const cartDoc = await cartsRef.doc(userId).get();
+
+  let items = [];
+  if (cartDoc.exists) {
+    items = cartDoc.data().items || [];
+  }
+
+  const itemIndex = items.findIndex(item => item.productId === resolvedProductId);
   if (itemIndex > -1) {
-    cart.items[itemIndex].quantity = quantity;
-    const savedCart = await cart.save();
-    return {
-      items: savedCart.items,
-      totalPrice: calculateTotal(savedCart.items),
-    };
+    items[itemIndex].quantity += quantity;
   } else {
-    throw new Error("Item not found in cart");
+    items.push({
+      productId: resolvedProductId,
+      title: product.title,
+      price: product.price,
+      image: product.image,
+      category: product.category,
+      description: product.description,
+      quantity,
+    });
   }
+
+  // Clean invalid products using reusable function
+  items = await cleanInvalidProducts(items);
+
+  await cartsRef.doc(userId).set({ items, updatedAt: new Date() });
+  return { items, totalPrice: calculateTotal(items) };
 };
 
-const removeItemFromCart = async (userId, productId) => {
-  const cart = await Cart.findOne({ userId });
-  if (!cart) throw new Error("Cart not found");
+// Update item quantity
+const updateItemQuantity = async (userId, productId, quantity) => {
+  const cartDoc = await cartsRef.doc(userId).get();
+  if (!cartDoc.exists) throw new Error('Cart not found');
 
-  cart.items = cart.items.filter(
-    (item) => item.productId.toString() !== productId,
-  );
-  
-  
+  const cart = cartDoc.data();
+  const itemIndex = cart.items.findIndex(item => item.productId === productId);
+  if (itemIndex === -1) throw new Error('Item not found in cart');
+
+  cart.items[itemIndex].quantity = quantity;
+
+  await cartsRef.doc(userId).set({ items: cart.items, updatedAt: new Date() });
+  return { items: cart.items, totalPrice: calculateTotal(cart.items) };
+};
+
+// Remove item from cart
+const removeItemFromCart = async (userId, productId) => {
+  const cartDoc = await cartsRef.doc(userId).get();
+  if (!cartDoc.exists) throw new Error('Cart not found');
+
+  let cart = cartDoc.data();
+  cart.items = cart.items.filter(item => item.productId !== productId);
+
   if (cart.items.length === 0) {
-    await Cart.findByIdAndDelete(cart._id);
-    return {
-      items: [],
-      totalPrice: 0,
-    };
+    await cartsRef.doc(userId).delete();
+    return { items: [], totalPrice: 0 };
   }
-  
-  const savedCart = await cart.save();
-  return {
-    items: savedCart.items,
-    totalPrice: calculateTotal(savedCart.items),
-  };
+
+  await cartsRef.doc(userId).set({ items: cart.items, updatedAt: new Date() });
+  return { items: cart.items, totalPrice: calculateTotal(cart.items) };
 };
 
 module.exports = {

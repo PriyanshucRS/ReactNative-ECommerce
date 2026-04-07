@@ -5,16 +5,18 @@ import addProductReducer from '../slices/addProductSlice';
 import authApi from '../services/authApi';
 import productsApi from '../services/productsApi';
 import cartApi from '../services/cartApi';
-
-export type RootState = ReturnType<typeof rootReducer>;
+import wishlistApi from '../services/wishlistApi';
+import wishlistReducer from '../slices/wishlistSlice';
 
 const rootReducer = combineReducers({
   authApi: authApi.reducer,
   productsApi: productsApi.reducer,
   cartApi: cartApi.reducer,
+  wishlistApi: wishlistApi.reducer,
   auth: authReducer,
   cart: cartReducer,
   addProduct: addProductReducer,
+  wishlist: wishlistReducer,
 });
 
 export default rootReducer;

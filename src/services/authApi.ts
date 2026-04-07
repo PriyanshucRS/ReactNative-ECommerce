@@ -1,5 +1,6 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, API_ENDPOINTS } from '../constants/constants';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { API_ENDPOINTS } from '../constants/constants';
+import { baseQueryWithReauth } from './baseQuery';
 
 interface LoginPayload {
   email: string;
@@ -14,36 +15,26 @@ interface RegisterPayload {
 }
 
 export interface User {
-  _id: string;
+  uid?: string;
+  _id?: string;
   email: string;
   firstName: string;
   lastName: string;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   user: User;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface LogoutResponse {
+  message: string;
 }
 
 const authApi = createApi({
   reducerPath: 'authApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: async headers => {
-      try {
-        const {
-          default: AsyncStorage,
-        } = require('@react-native-async-storage/async-storage');
-        const token = await AsyncStorage.getItem('token');
-        if (token) {
-          headers.set('Authorization', `Bearer ${token}`);
-        }
-      } catch (error) {
-        console.log('Token retrieval error:', error);
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Auth'],
   endpoints: builder => ({
     login: builder.mutation<AuthResponse, LoginPayload>({
@@ -62,8 +53,16 @@ const authApi = createApi({
       }),
       invalidatesTags: ['Auth'],
     }),
+    logout: builder.mutation<LogoutResponse, void>({
+      query: () => ({
+        url: API_ENDPOINTS.AUTH.LOGOUT,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Auth'],
+    }),
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation } = authApi;
+export const { useLoginMutation, useRegisterMutation, useLogoutMutation } =
+  authApi;
 export default authApi;

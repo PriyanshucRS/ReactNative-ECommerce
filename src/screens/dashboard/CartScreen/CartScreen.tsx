@@ -6,21 +6,48 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import {
   useGetCartQuery,
   useUpdateCartQuantityMutation,
   useRemoveFromCartMutation,
 } from '../../../services/api';
 import { cartStyles } from './CartStyles';
+import { getFallbackKey, getProductId } from '../../../utils/helpers';
+import BottomTabs from '../../../components/BottomTabs';
+import type { RootState } from '../../../store/store';
 
 const CartScreen = () => {
-  const cartQuery = useGetCartQuery();
-  const cartData: any = cartQuery.data;
-  const cartItems = Array.isArray(cartData) ? cartData : cartData?.items ?? [];
-  const isCartLoading = cartQuery.isLoading;
+  const navigation = useNavigation<any>();
+  const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
+  const { data: fetchedCartItems = [], isLoading: isCartLoading } = useGetCartQuery(
+    undefined,
+    { skip: !isLoggedIn },
+  );
+  const cartItems = isLoggedIn ? fetchedCartItems : [];
   const [updateQuantity] = useUpdateCartQuantityMutation();
   const [removeFromCart] = useRemoveFromCartMutation();
+
+  const confirmRemoveFromCart = (item: any) => {
+    Alert.alert(
+      'Remove Item',
+      `Do you want to remove ${item.title || 'this item'} from cart?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            await removeFromCart({ productId: getProductId(item) });
+          },
+        },
+      ],
+    );
+  };
 
   const totalPrice = cartItems.reduce(
     (total: number, item: any) => total + item.price * item.quantity,
@@ -52,13 +79,11 @@ const CartScreen = () => {
               onPress={async () => {
                 if (item.quantity > 1) {
                   await updateQuantity({
-                    productId: item.productId || item._id,
+                    productId: getProductId(item),
                     quantity: item.quantity - 1,
                   });
                 } else {
-                  await removeFromCart({
-                    productId: item.productId || item._id,
-                  });
+                  confirmRemoveFromCart(item);
                 }
               }}
             >
@@ -71,7 +96,7 @@ const CartScreen = () => {
               style={cartStyles.btnAction}
               onPress={async () => {
                 await updateQuantity({
-                  productId: item.productId || item._id,
+                  productId: getProductId(item),
                   quantity: item.quantity + 1,
                 });
               }}
@@ -81,12 +106,10 @@ const CartScreen = () => {
           </View>
 
           <TouchableOpacity
-            onPress={async () => {
-              await removeFromCart({ productId: item.productId || item._id });
-            }}
+            onPress={() => confirmRemoveFromCart(item)}
             style={cartStyles.removeBtn}
           >
-            <Text style={cartStyles.removeText}>Remove</Text>
+            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -104,16 +127,23 @@ const CartScreen = () => {
 
   return (
     <View style={cartStyles.container}>
+      <TouchableOpacity
+        style={cartStyles.backButton}
+        onPress={() => navigation.navigate('homeScreen')}
+      >
+        <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+      </TouchableOpacity>
       <FlatList
         data={cartItems}
-        keyExtractor={(item, index) =>
-          (item._id || item.productId || index).toString()
-        }
+        keyExtractor={getFallbackKey}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 86 }}
         ListEmptyComponent={
           <View style={cartStyles.emptyContainer}>
-            <Text style={cartStyles.empty}>Your cart is empty! 🛒</Text>
+            <Text style={cartStyles.empty}>
+              {isLoggedIn ? 'Your cart is empty! 🛒' : 'Login to view cart items.'}
+            </Text>
           </View>
         }
       />
@@ -128,6 +158,7 @@ const CartScreen = () => {
           </View>
         </View>
       )}
+      <BottomTabs activeTab="cart" />
     </View>
   );
 };

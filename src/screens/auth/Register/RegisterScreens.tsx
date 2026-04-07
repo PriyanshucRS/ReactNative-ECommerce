@@ -75,7 +75,7 @@ const RegisterScreen = () => {
 
   const onSubmit = async (data: RegisterData) => {
     try {
-      const { confirmPassword, ...registerData } = data;
+      const { confirmPassword: _confirmPassword, ...registerData } = data;
       // Trim whitespace from all fields
       const trimmedData = {
         ...registerData,
@@ -83,14 +83,11 @@ const RegisterScreen = () => {
         lastName: registerData.lastName.trim(),
         email: registerData.email.trim(),
       };
-      console.log('Register payload:', trimmedData);
-      const result = await register(trimmedData).unwrap();
-      console.log('Register result:', result);
+      await register(trimmedData).unwrap();
       Alert.alert('Success', 'Account created! Please login.');
       reset();
       navigation.replace('loginScreen');
     } catch (error: any) {
-      console.error('Register error:', error);
       Alert.alert('Error', error.data?.message || 'Registration failed');
     }
   };
@@ -221,13 +218,13 @@ const RegisterScreen = () => {
 
         {passwordFocused && (
           <View style={styles.Pcontainer}>
-            {[
+            {([
               ['Minimum 6 characters', hasMinLength],
               ['Lowercase letter', hasLowercase],
               ['Uppercase letter', hasUppercase],
               ['Number', hasNumber],
               ['Special character', hasSpecial],
-            ].map(([label, cond], i) => (
+            ] as [string, boolean][]).map(([label, cond], i) => (
               <Text
                 key={i}
                 style={[styles.Ptext, { color: getCriteriaColor(cond) }]}
