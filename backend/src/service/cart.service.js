@@ -5,7 +5,11 @@ const cartsRef = db.collection('carts');
 const productsRef = db.collection('products');
 
 const calculateTotal = items =>
-  items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  items
+    .filter(item => !item.unavailable)
+    .reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+const getItemProductId = item => item?.productId || item?.id || item?._id;
 
 const resolveProductDocumentById = async productId => {
   if (!productId) return null;
@@ -15,19 +19,33 @@ const resolveProductDocumentById = async productId => {
   return { id: productDoc.id, data: productDoc.data() };
 };
 
-// Clean invalid products from cart items
+// Mark invalid products instead of removing them
 const cleanInvalidProducts = async items => {
-  const validItems = [];
+  const cleaned = [];
   for (const item of items) {
-    const resolvedProduct = await resolveProductDocumentById(item.productId);
+    const storedProductId = getItemProductId(item);
+    const resolvedProduct = await resolveProductDocumentById(storedProductId);
     if (resolvedProduct) {
-      validItems.push({
+      cleaned.push({
         ...item,
         productId: resolvedProduct.id,
+        unavailable: false,
+        // Refresh latest product fields so updates reflect in cart.
+        title: resolvedProduct.data.title,
+        price: resolvedProduct.data.price,
+        image: resolvedProduct.data.image,
+        category: resolvedProduct.data.category,
+        description: resolvedProduct.data.description,
+      });
+    } else {
+      cleaned.push({
+        ...item,
+        productId: storedProductId,
+        unavailable: true,
       });
     }
   }
-  return validItems;
+  return cleaned;
 };
 
 // Get cart by user ID
@@ -66,7 +84,9 @@ const addItemToCart = async (userId, productId, quantity) => {
     items = cartDoc.data().items || [];
   }
 
-  const itemIndex = items.findIndex(item => item.productId === resolvedProductId);
+  const itemIndex = items.findIndex(
+    item => getItemProductId(item) === resolvedProductId,
+  );
   if (itemIndex > -1) {
     items[itemIndex].quantity += quantity;
   } else {
@@ -94,7 +114,9 @@ const updateItemQuantity = async (userId, productId, quantity) => {
   if (!cartDoc.exists) throw new Error('Cart not found');
 
   const cart = cartDoc.data();
-  const itemIndex = cart.items.findIndex(item => item.productId === productId);
+  const itemIndex = cart.items.findIndex(
+    item => getItemProductId(item) === productId,
+  );
   if (itemIndex === -1) throw new Error('Item not found in cart');
 
   cart.items[itemIndex].quantity = quantity;
@@ -109,7 +131,7 @@ const removeItemFromCart = async (userId, productId) => {
   if (!cartDoc.exists) throw new Error('Cart not found');
 
   let cart = cartDoc.data();
-  cart.items = cart.items.filter(item => item.productId !== productId);
+  cart.items = cart.items.filter(item => getItemProductId(item) !== productId);
 
   if (cart.items.length === 0) {
     await cartsRef.doc(userId).delete();

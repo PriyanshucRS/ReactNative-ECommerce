@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   TextInput,
@@ -16,8 +16,9 @@ import {
   ImageLibraryOptions,
 } from 'react-native-image-picker';
 import { useForm, Controller } from 'react-hook-form';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAddProductMutation } from '../../../services/api';
+import { useUpdateProductMutation } from '../../../services/productsApi';
 import { styles } from './AddProductStyles';
 import BottomTabs from '../../../components/BottomTabs';
 
@@ -40,18 +41,41 @@ const categoryOptions = [
 
 const AddProductScreen = () => {
   const navigation = useNavigation<any>();
-  const [addProduct, { isLoading }] = useAddProductMutation();
+  const route = useRoute<any>();
+  const editingProduct = route.params?.product;
+  const isEdit = !!editingProduct;
+  const [addProduct, { isLoading: isAdding }] = useAddProductMutation();
+  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
 
-  const { control, handleSubmit, watch } = useForm<FormData>({
-    defaultValues: {
-      title: '',
-      price: 0,
-      description: '',
-      category: '',
-      image: '',
-    },
+  const initialValues: FormData = useMemo(
+    () =>
+      editingProduct
+        ? {
+            title: editingProduct.title || editingProduct.name || '',
+            price: editingProduct.price || 0,
+            description: editingProduct.description || '',
+            category: editingProduct.category || '',
+            image: editingProduct.image || '',
+          }
+        : {
+            title: '',
+            price: '',
+            description: '',
+            category: '',
+            image: '',
+          },
+    [editingProduct],
+  );
+
+  const { control, handleSubmit, watch, reset, setValue } = useForm<FormData>({
+    defaultValues: initialValues,
   });
+
+  useEffect(() => {
+    // Ensure autofill also works if screen stays mounted and params change.
+    reset(initialValues);
+  }, [reset, initialValues]);
 
   const imageValue = watch('image');
 
@@ -74,13 +98,21 @@ const AddProductScreen = () => {
         return;
       }
 
-      await addProduct({
+      const payload = {
         ...data,
         title: data.title.trim(),
         description: data.description.trim(),
         price: price,
-      }).unwrap();
-      Alert.alert('Success', 'Product added successfully!');
+      };
+
+      if (isEdit) {
+        const id = editingProduct.id || editingProduct._id;
+        await updateProduct({ id, data: payload }).unwrap();
+        Alert.alert('Success', 'Product updated successfully!');
+      } else {
+        await addProduct(payload).unwrap();
+        Alert.alert('Success', 'Product added successfully!');
+      }
       navigation.goBack();
     } catch (error: any) {
       const errorMessage =
@@ -119,7 +151,7 @@ const AddProductScreen = () => {
   };
 
   const handleRemoveImage = () => {
-    watch('image', '');
+    setValue('image', '');
   };
 
   return (
@@ -131,11 +163,19 @@ const AddProductScreen = () => {
       >
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.navigate('homeScreen')}
+          onPress={() => {
+            if (navigation.canGoBack?.()) {
+              navigation.goBack();
+              return;
+            }
+            navigation.navigate('MainDrawer', { screen: 'homeScreen' });
+          }}
         >
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.header}>Add New Product</Text>
+        <Text style={styles.header}>
+          {isEdit ? 'Update Product' : 'Add New Product'}
+        </Text>
 
         <Controller
           control={control}
@@ -306,15 +346,17 @@ const AddProductScreen = () => {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            isLoading && styles.submitButtonDisabled,
+            (isAdding || isUpdating) && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit(onSubmit)}
-          disabled={isLoading}
+          disabled={isAdding || isUpdating}
         >
-          {isLoading ? (
+          {isAdding || isUpdating ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitButtonText}>Add Product</Text>
+            <Text style={styles.submitButtonText}>
+              {isEdit ? 'Update Product' : 'Add Product'}
+            </Text>
           )}
         </TouchableOpacity>
       </ScrollView>

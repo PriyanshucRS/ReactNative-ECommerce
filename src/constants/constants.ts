@@ -6,9 +6,13 @@ export const API_BASE_URL = USE_NGROK
   ? NGROK_URL
   : `http://${IP_ADDRESS}:${BACKEND_PORT}`;
 
+export const GOOGLE_WEB_CLIENT_ID =
+  '542544581166-fs5s122bd1pq07v8arg7dsg47rdmpuvg.apps.googleusercontent.com';
+
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/api/auth/login',
+    VERIFY_OTP: '/api/auth/verify-otp',
     REGISTER: '/api/auth/register',
     REFRESH: '/api/auth/refresh',
     LOGOUT: '/api/auth/logout',
@@ -17,6 +21,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/products',
     CREATE: '/api/products',
     USER: '/api/products/user',
+    UPDATE: (id: string) => `/api/products/${id}`,
     DELETE: (id: string) => `/api/products/${id}`,
   },
   WISHLIST: {

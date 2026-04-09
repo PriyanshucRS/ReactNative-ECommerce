@@ -1,6 +1,7 @@
 import { createStackNavigator } from '@react-navigation/stack';
 import DetailsScreen from '../screens/dashboard/DetailsScreen/DetailsScreen';
 import LoginScreen from '../screens/auth/Login/LoginScreen';
+import OtpScreen from '../screens/auth/OtpVerify/OtpScreen';
 import RegisterScreen from '../screens/auth/Register/RegisterScreens';
 import DrawerNavigator from './drawer/DrawerNavigator';
 import AddProductScreen from '../screens/dashboard/AddProductScreen/AddProductScreen';
@@ -15,6 +16,7 @@ const AppNavigator = () => {
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="loginScreen" component={LoginScreen} />
+      <Stack.Screen name="otpScreen" component={OtpScreen} />
       <Stack.Screen name="registerScreen" component={RegisterScreen} />
       <Stack.Screen name="MainDrawer" component={DrawerNavigator} />
       <Stack.Screen name="detailsScreen" component={DetailsScreen} />

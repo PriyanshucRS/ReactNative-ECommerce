@@ -44,13 +44,6 @@ export const styles = StyleSheet.create({
     marginTop: 15,
     overflow: 'hidden',
   },
-  passwordInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 15,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
   inputError: {
     borderColor: colors.danger,
     backgroundColor: colors.inputBg,
@@ -81,10 +74,51 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  googleBtn: {
+    marginTop: 14,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 999,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  googleBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  googleLogo: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
+  },
+  googleBtnText: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   btnText: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  otpInfoText: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resendLink: {
+    marginTop: 10,
+    alignSelf: 'center',
+  },
+  resendText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
   },
   new: {
     marginTop: 20,

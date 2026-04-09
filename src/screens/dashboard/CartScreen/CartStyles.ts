@@ -168,4 +168,7 @@ export const cartStyles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  unavailableCard: {
+    opacity: 0.55,
+  },
 });

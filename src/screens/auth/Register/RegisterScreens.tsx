@@ -7,42 +7,32 @@ import {
   Alert,
   View,
 } from 'react-native';
-import React, { useRef, useState, useEffect } from 'react';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { styles } from './RegisterStyles';
 import { useForm, Controller } from 'react-hook-form';
 import { useRegisterMutation } from '../../../services/api';
+import type { RootStackParamList } from '../../../navigations/types';
+import type { RouteProp } from '@react-navigation/native';
 
 interface RegisterData {
   firstName: string;
   lastName: string;
   email: string;
-  password: string;
-  confirmPassword: string;
+  phone: string;
 }
 
 const RegisterScreen = () => {
+  type RegisterScreenRouteProp = RouteProp<RootStackParamList, 'registerScreen'>;
   const navigation = useNavigation<any>();
+  const route = useRoute<RegisterScreenRouteProp>();
   const [register, { isLoading }] = useRegisterMutation();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const [_, setConfirmPasswordFocused] = useState(false);
-  const passwordInputRef = useRef<any>(null);
-  const confirmPasswordInputRef = useRef<any>(null);
-
-  const [hasLowercase, setHasLowercase] = useState(false);
-  const [hasUppercase, setHasUppercase] = useState(false);
-  const [hasNumber, setHasNumber] = useState(false);
-  const [hasSpecial, setHasSpecial] = useState(false);
-  const [hasMinLength, setHasMinLength] = useState(false);
 
   const {
     control,
     handleSubmit,
     reset,
-    watch,
+    getValues,
     formState: { errors },
   } = useForm<RegisterData>({
     mode: 'onChange',
@@ -50,38 +40,31 @@ const RegisterScreen = () => {
       firstName: '',
       lastName: '',
       email: '',
-      password: '',
-      confirmPassword: '',
+      phone: '',
     },
   });
 
-  const password = watch('password');
-
   useEffect(() => {
-    const lower = /[a-z]/.test(password);
-    const upper = /[A-Z]/.test(password);
-    const number = /[0-9]/.test(password);
-    const special = /[!@#$%^&*]/.test(password);
-    const length = password.length >= 6;
-
-    setHasLowercase(lower);
-    setHasUppercase(upper);
-    setHasNumber(number);
-    setHasSpecial(special);
-    setHasMinLength(length);
-  }, [password]);
-
-  const getCriteriaColor = (met: boolean) => (met ? '#10B981' : '#EF4444');
+    const prefill = route.params;
+    if (!prefill) return;
+    const current = getValues();
+    reset({
+      ...current,
+      email: prefill.prefillEmail || current.email,
+      phone: prefill.prefillPhone || current.phone,
+      firstName: prefill.prefillFirstName || current.firstName,
+      lastName: prefill.prefillLastName || current.lastName,
+    });
+  }, [route.params, reset, getValues]);
 
   const onSubmit = async (data: RegisterData) => {
     try {
-      const { confirmPassword: _confirmPassword, ...registerData } = data;
       // Trim whitespace from all fields
       const trimmedData = {
-        ...registerData,
-        firstName: registerData.firstName.trim(),
-        lastName: registerData.lastName.trim(),
-        email: registerData.email.trim(),
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        email: data.email.trim(),
+        phone: data.phone.trim(),
       };
       await register(trimmedData).unwrap();
       Alert.alert('Success', 'Account created! Please login.');
@@ -90,14 +73,6 @@ const RegisterScreen = () => {
     } catch (error: any) {
       Alert.alert('Error', error.data?.message || 'Registration failed');
     }
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(prev => !prev);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(prev => !prev);
   };
 
   return (
@@ -173,112 +148,25 @@ const RegisterScreen = () => {
 
         <Controller
           control={control}
-          name="password"
+          name="phone"
           rules={{
-            required: 'Password is required',
-            minLength: { value: 6, message: 'Minimum 6 characters' },
+            required: 'Phone is required',
+            minLength: { value: 10, message: 'Enter valid phone number' },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
-            <View
-              style={[
-                styles.inputContainer,
-                errors.password && styles.inputError,
-              ]}
-            >
-              <TextInput
-                ref={passwordInputRef}
-                style={styles.passwordInput}
-                placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showPassword}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => {
-                  setPasswordFocused(false);
-                  onBlur();
-                }}
-                onChangeText={onChange}
-                value={value}
-              />
-              <TouchableOpacity
-                onPress={togglePasswordVisibility}
-                style={styles.iconButton}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#6B7280"
-                />
-              </TouchableOpacity>
-            </View>
+            <TextInput
+              style={[styles.input, errors.phone && styles.inputError]}
+              placeholder="Enter your contact number"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              value={value}
+            />
           )}
         />
-        {errors.password && (
-          <Text style={styles.errorText}>{errors.password.message}</Text>
-        )}
-
-        {passwordFocused && (
-          <View style={styles.Pcontainer}>
-            {([
-              ['Minimum 6 characters', hasMinLength],
-              ['Lowercase letter', hasLowercase],
-              ['Uppercase letter', hasUppercase],
-              ['Number', hasNumber],
-              ['Special character', hasSpecial],
-            ] as [string, boolean][]).map(([label, cond], i) => (
-              <Text
-                key={i}
-                style={[styles.Ptext, { color: getCriteriaColor(cond) }]}
-              >
-                • {label} {cond ? '✓' : '✗'}
-              </Text>
-            ))}
-          </View>
-        )}
-
-        <Controller
-          control={control}
-          name="confirmPassword"
-          rules={{
-            required: 'Confirm Password is required',
-            validate: value =>
-              value === watch('password') || 'Passwords do not match',
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <View
-              style={[
-                styles.inputContainer,
-                errors.confirmPassword && styles.inputError,
-              ]}
-            >
-              <TextInput
-                ref={confirmPasswordInputRef}
-                style={styles.passwordInput}
-                placeholder="Confirm your password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showConfirmPassword}
-                onFocus={() => setConfirmPasswordFocused(true)}
-                onBlur={() => {
-                  setConfirmPasswordFocused(false);
-                  onBlur();
-                }}
-                onChangeText={onChange}
-                value={value}
-              />
-              <TouchableOpacity
-                onPress={toggleConfirmPasswordVisibility}
-                style={styles.iconButton}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#6B7280"
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-        />
-        {errors.confirmPassword && (
-          <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
+        {errors.phone && (
+          <Text style={styles.errorText}>{errors.phone.message}</Text>
         )}
 
         <TouchableOpacity

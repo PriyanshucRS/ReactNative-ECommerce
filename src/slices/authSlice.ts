@@ -32,14 +32,16 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setUser: (state, action: PayloadAction<User>) => {
-      state.user = action.payload;
-    },
     setAccessToken: (state, action: PayloadAction<string>) => {
       state.accessToken = action.payload;
     },
     setRefreshToken: (state, action: PayloadAction<string>) => {
       state.refreshToken = action.payload;
+    },
+    setFirebaseUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.accessToken = null;
+      state.refreshToken = null;
     },
     signout: state => {
       state.user = null;
@@ -49,11 +51,8 @@ const authSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addMatcher(authApi.endpoints.login.matchFulfilled, (state, action) => {
-        applyAuthPayload(state, action.payload as AuthResponse);
-      })
       .addMatcher(
-        authApi.endpoints.register.matchFulfilled,
+        authApi.endpoints.verifyOtp.matchFulfilled,
         (state, action) => {
           applyAuthPayload(state, action.payload as AuthResponse);
         },
@@ -66,6 +65,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setAccessToken, setRefreshToken, signout } =
+export const { setAccessToken, setRefreshToken, setFirebaseUser, signout } =
   authSlice.actions;
 export default authSlice.reducer;

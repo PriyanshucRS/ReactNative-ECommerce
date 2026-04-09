@@ -27,12 +27,13 @@ const BottomTabs = ({ activeTab }: Props) => {
     }
 
     // Otherwise, jump to Drawer (nested inside stack) and target that screen.
-    navigation.getParent()?.navigate('MainDrawer', { screen: screenName });
+    // In our app `MainDrawer` lives in the root stack, so stack navigation works reliably.
+    navigation.navigate('MainDrawer', { screen: screenName });
   };
 
   const handleAddProduct = () => {
     if (!isLoggedIn) {
-      navigation.getParent()?.navigate('loginScreen');
+      navigation.navigate('loginScreen');
       return;
     }
     goToDrawerScreen('AddProductScreen');

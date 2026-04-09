@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useGetProductsQuery } from '../../../services/api';
@@ -26,16 +26,120 @@ import { HeaderScreen } from '../Header/HeaderScreen';
 import { styles } from './HomeStyles';
 import { getFallbackKey, getProductId } from '../../../utils/helpers';
 import BottomTabs from '../../../components/BottomTabs';
+import { Picker } from '@react-native-picker/picker';
+import Slider from '@react-native-community/slider';
+import { colors } from '../../../utils/colors';
 
 const HomeScreen = () => {
+  const toSafePrice = (value: unknown) => {
+    const normalized = String(value ?? '')
+      .replace(/[^0-9.]/g, '')
+      .trim();
+    const parsed = Number(normalized);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
   const dispatch = useDispatch();
   const [toggleWishlist] = useToggleWishlistMutation();
-  const { data: wishlistData } = useGetWishlistQuery();
   const favorites = useSelector(selectFavorites);
   const navigation = useNavigation<any>();
   const authUser = useSelector((state: RootState) => state.auth.user);
-  const { data: productsData, isLoading } = useGetProductsQuery();
-  const products = productsData || [];
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
+  const { data: wishlistData } = useGetWishlistQuery(undefined, {
+    skip: !accessToken,
+  });
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'All' | string>(
+    'All',
+  );
+  const [selectedMaxPrice, setSelectedMaxPrice] = useState(0);
+
+  const filterArgs = useMemo(() => {
+    const args: { category?: string; maxPrice?: number } = {};
+    if (selectedCategory !== 'All') args.category = selectedCategory;
+    if (selectedMaxPrice > 0) args.maxPrice = selectedMaxPrice;
+    return Object.keys(args).length ? args : undefined;
+  }, [selectedCategory, selectedMaxPrice]);
+
+  const { data: allProductsData } = useGetProductsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+  const { data: filteredData, isLoading } = useGetProductsQuery(filterArgs, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+  const products = useMemo(() => filteredData || [], [filteredData]);
+
+  const priceStep = 500;
+
+  const maxProductPrice = useMemo(() => {
+    const prices = (allProductsData || [])
+      .map((p: any) => toSafePrice(p?.price))
+      .filter((n: number) => !Number.isNaN(n) && n >= 0);
+    return prices.length ? Math.max(...prices) : 0;
+  }, [allProductsData]);
+
+  const maxSelectablePrice = useMemo(() => {
+    // Round up to nearest 500 so slider `step={500}` always works.
+    if (!maxProductPrice) return 0;
+    return Math.ceil(maxProductPrice / priceStep) * priceStep;
+  }, [maxProductPrice]);
+
+  useEffect(() => {
+    // Default: show all (max)
+    setSelectedMaxPrice(maxSelectablePrice);
+  }, [maxSelectablePrice]);
+
+  const categories = useMemo(() => {
+    const unique = new Map<string, string>();
+    (allProductsData || []).forEach((p: any) => {
+      const c = (p?.category ?? '').toString().trim();
+      const normalized = c.toLowerCase();
+      if (c && !unique.has(normalized)) {
+        unique.set(normalized, c);
+      }
+    });
+    return ['All', ...Array.from(unique.values())];
+  }, [allProductsData]);
+
+  useEffect(() => {
+    if (selectedCategory === 'All') return;
+    const selectedNormalized = selectedCategory.toLowerCase().trim();
+    const exists = categories.some(
+      c => c.toLowerCase().trim() === selectedNormalized,
+    );
+    if (!exists) {
+      setSelectedCategory('All');
+    }
+  }, [categories, selectedCategory]);
+
+  const hasPricedProducts = maxSelectablePrice > 0;
+  const sliderMaxValue = hasPricedProducts ? maxSelectablePrice : priceStep;
+
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const qNum = q ? Number(q) : NaN;
+
+    return products.filter((p: any) => {
+      const title = (p?.title || p?.name || '').toString().toLowerCase();
+      const category = (p?.category || '').toString().toLowerCase();
+      const price = toSafePrice(p?.price);
+
+      const matchesSearch = !q
+        ? true
+        : title.includes(q) ||
+          category.includes(q) ||
+          (!Number.isNaN(qNum) &&
+            (price === qNum || price.toString().includes(q)));
+
+      return matchesSearch;
+    });
+  }, [products, searchQuery]);
 
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -75,7 +179,7 @@ const HomeScreen = () => {
         style={styles.chatIconContainer}
         onPress={async e => {
           e.stopPropagation();
-          if (!authUser) {
+          if (!accessToken) {
             Alert.alert(
               'Login Required',
               'Watchlist me add karne ke liye pehle login karein.',
@@ -83,7 +187,8 @@ const HomeScreen = () => {
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'OK',
-                  onPress: () => navigation.getParent()?.navigate('loginScreen'),
+                  onPress: () =>
+                    navigation.getParent()?.navigate('loginScreen'),
                 },
               ],
             );
@@ -100,13 +205,13 @@ const HomeScreen = () => {
       >
         <Ionicons
           name={
-            authUser && favorites.includes(getProductId(item))
+            !!accessToken && favorites.includes(getProductId(item))
               ? 'heart'
               : 'heart-outline'
           }
           style={styles.chatIcon}
           color={
-            authUser && favorites.includes(getProductId(item))
+            !!accessToken && favorites.includes(getProductId(item))
               ? '#FF4444'
               : undefined
           }
@@ -131,44 +236,143 @@ const HomeScreen = () => {
     </TouchableOpacity>
   );
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <HeaderScreen />
-        <ActivityIndicator size="large" color="#007AFF" style={{ flex: 1 }} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <HeaderScreen />
-      {showWelcome && authUser && (
-        <View style={styles.welcome}>
-          <Text style={styles.welcomeText}>Welcome {getFullName()}!</Text>
-          <TouchableOpacity
-            onPress={handleWelcomeDismiss}
-            style={styles.welcomeText1}
-          >
-            <Ionicons name="close" size={20} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-      )}
-      <FlatList
-        data={products}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 86 }}
-        keyExtractor={getFallbackKey}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        renderItem={renderProduct}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.empty}> No products added yet!</Text>
-          </View>
-        }
+      <HeaderScreen
+        searchOpen={searchOpen}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSearchClose={() => setSearchOpen(false)}
+        onSearchPress={() => {
+          setSearchOpen(prev => !prev);
+          setFilterOpen(false);
+        }}
       />
-      <BottomTabs activeTab="home" />
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : (
+        <>
+          {showWelcome && authUser && (
+            <View style={styles.welcome}>
+              <Text style={styles.welcomeText}>Welcome {getFullName()}!</Text>
+              <TouchableOpacity
+                onPress={handleWelcomeDismiss}
+                style={styles.welcomeText1}
+              >
+                <Ionicons name="close" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.searchFilterRow}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => {
+                navigation.openDrawer();
+              }}
+            >
+              <Ionicons
+                name="navigate-outline"
+                size={22}
+                color={colors?.textPrimary ?? '#fff'}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => {
+                setFilterOpen(prev => !prev);
+              }}
+            >
+              <Ionicons
+                name="options"
+                size={22}
+                color={colors?.textPrimary ?? '#fff'}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterAnchor}>
+            {filterOpen && (
+              <View style={styles.filterPanel}>
+                <Text style={styles.filterTitle}>Filter</Text>
+
+                <View style={styles.filterRow}>
+                  <Picker
+                    selectedValue={selectedCategory}
+                    onValueChange={value => setSelectedCategory(String(value))}
+                    style={styles.picker}
+                    mode="dialog"
+                    dropdownIconColor={colors.textPrimary}
+                    itemStyle={{ color: colors.textPrimary }}
+                  >
+                    {categories.map(cat => (
+                      <Picker.Item key={cat} label={cat} value={cat} />
+                    ))}
+                  </Picker>
+                </View>
+
+                <View style={styles.sliderWrap}>
+                  <Text style={styles.sliderValueText}>
+                    {hasPricedProducts
+                      ? `Up to ₹${selectedMaxPrice.toLocaleString()}`
+                      : 'No priced products available'}
+                  </Text>
+
+                  <Slider
+                    style={styles.slider}
+                    minimumValue={0}
+                    maximumValue={sliderMaxValue}
+                    step={priceStep}
+                    value={selectedMaxPrice}
+                    onValueChange={value => setSelectedMaxPrice(value)}
+                    minimumTrackTintColor={colors.primary}
+                    maximumTrackTintColor={colors.border}
+                    thumbTintColor={colors.primary}
+                    disabled={!hasPricedProducts}
+                  />
+                </View>
+
+                <View style={styles.filterActionRow}>
+                  <TouchableOpacity
+                    style={[styles.filterBtn, styles.resetBtn]}
+                    onPress={() => {
+                      setSearchQuery('');
+                      setSelectedCategory('All');
+                      setSelectedMaxPrice(maxSelectablePrice || 0);
+                    }}
+                  >
+                    <Text style={styles.filterBtnText}>Reset</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterBtn, styles.applyBtn]}
+                    onPress={() => setFilterOpen(false)}
+                  >
+                    <Text style={styles.filterBtnText}>Apply</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <FlatList
+            data={filteredProducts}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 86 }}
+            keyExtractor={getFallbackKey}
+            numColumns={2}
+            columnWrapperStyle={styles.columnWrapper}
+            renderItem={renderProduct}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.empty}> No products added yet!</Text>
+              </View>
+            }
+          />
+          <BottomTabs activeTab="home" />
+        </>
+      )}
     </View>
   );
 };

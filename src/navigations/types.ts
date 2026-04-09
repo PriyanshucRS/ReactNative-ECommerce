@@ -1,6 +1,7 @@
 export interface DetailsProductParam {
   id?: string;
   _id?: string;
+  userId?: string;
   image: string;
   category: string;
   title: string;
@@ -11,8 +12,24 @@ export interface DetailsProductParam {
 
 export type RootStackParamList = {
   loginScreen: undefined;
-  registerScreen: undefined;
+  otpScreen: {
+    identifier: string;
+    authMode: 'backend' | 'firebase_phone';
+    verificationId?: string;
+  };
+  registerScreen:
+    | undefined
+    | {
+        prefillEmail?: string;
+        prefillPhone?: string;
+        prefillFirstName?: string;
+        prefillLastName?: string;
+      };
   MainDrawer: undefined;
   detailsScreen: { product: DetailsProductParam };
-  AddProductScreen: undefined;
+  AddProductScreen:
+    | undefined
+    | {
+        product: DetailsProductParam;
+      };
 };

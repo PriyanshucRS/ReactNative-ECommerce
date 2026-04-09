@@ -102,4 +102,7 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '600',
   },
+  unavailableCard: {
+    opacity: 0.55,
+  },
 });

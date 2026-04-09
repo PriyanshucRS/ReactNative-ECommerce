@@ -65,3 +65,18 @@ exports.getUserProducts = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized user' });
+    }
+    const updated = await productService.updateProduct(id, userId, req.body);
+    res.json({ success: true, product: updated });
+  } catch (error) {
+    const status = error.message.includes('own products') ? 403 : 400;
+    res.status(status).json({ success: false, message: error.message });
+  }
+};

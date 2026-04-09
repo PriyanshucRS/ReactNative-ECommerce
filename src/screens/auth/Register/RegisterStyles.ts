@@ -43,13 +43,6 @@ export const styles = StyleSheet.create({
     marginTop: 15,
     overflow: 'hidden',
   },
-  passwordInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 15,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
   iconButton: {
     height: '100%',
     paddingHorizontal: 15,

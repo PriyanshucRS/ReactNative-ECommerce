@@ -9,12 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import {
   useGetWishlistQuery,
   useToggleWishlistMutation,
 } from '../../../services/wishlistApi';
+import { useGetProductsQuery } from '../../../services/productsApi';
 import { styles } from './WatchlistStyles';
 import { getFallbackKey, getProductId } from '../../../utils/helpers';
 import BottomTabs from '../../../components/BottomTabs';
@@ -22,10 +23,29 @@ import type { RootState } from '../../../store/store';
 
 const WatchlistScreen = () => {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
-  const { data: wishlistData, isLoading } = useGetWishlistQuery(undefined, {
-    skip: !isLoggedIn,
+  const { data: allProducts = [] } = useGetProductsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
   });
+  const availableProductIds = new Set(
+    allProducts.map(p => p.id || p._id).filter(Boolean) as string[],
+  );
+  const { data: wishlistData, isLoading, refetch } = useGetWishlistQuery(
+    undefined,
+    {
+      skip: !isLoggedIn,
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    },
+  );
+
+  React.useEffect(() => {
+    if (isFocused && isLoggedIn) refetch();
+  }, [isFocused, isLoggedIn, refetch]);
   const [toggleWishlist] = useToggleWishlistMutation();
   const wishlist = isLoggedIn ? wishlistData || [] : [];
 
@@ -51,33 +71,64 @@ const WatchlistScreen = () => {
     );
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
-    <View style={[styles.card, { width: '100%' }]}>
-      <View style={styles.Imgcontainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
-      </View>
+  const renderProduct = ({ item }: { item: any }) => {
+    const isUnavailable =
+      item.unavailable || !availableProductIds.has(getProductId(item));
 
-      <View style={styles.contentBox}>
-        <Text style={styles.category}>{item.category}</Text>
-        <Text style={styles.name} numberOfLines={1}>
-          {item.title || item.name}
-        </Text>
-        <Text style={styles.desc} numberOfLines={2}>
-          {item.description}
-        </Text>
+    return (
+      <View
+        style={[
+          styles.card,
+          { width: '100%' },
+          isUnavailable && styles.unavailableCard,
+        ]}
+      >
+        <View style={styles.Imgcontainer}>
+          <Image
+            source={{ uri: item.image }}
+            style={[styles.image, isUnavailable && { opacity: 0.45 }]}
+          />
+        </View>
 
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDelete(getProductId(item))}
+        <View style={styles.contentBox}>
+          <Text style={styles.category}>{item.category}</Text>
+          <Text
+            style={[
+              styles.name,
+              isUnavailable && { color: '#9CA3AF' },
+            ]}
+            numberOfLines={1}
           >
-            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+            {item.title || item.name}
+          </Text>
+          {isUnavailable && (
+            <Text style={[styles.category, { color: '#2563EB', marginTop: 4 }]}>
+              Unavailable (deleted)
+            </Text>
+          )}
+          <Text
+            style={styles.desc}
+            numberOfLines={2}
+          >
+            {item.description}
+          </Text>
+
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
+            <TouchableOpacity
+              style={[
+                styles.deleteBtn,
+                isUnavailable && { opacity: 0.65 },
+              ]}
+              onPress={() => handleDelete(getProductId(item))}
+            >
+              <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (isLoading) {
     return (
@@ -91,7 +142,9 @@ const WatchlistScreen = () => {
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => navigation.navigate('homeScreen')}
+        onPress={() =>
+          navigation.getParent()?.navigate('MainDrawer', { screen: 'homeScreen' })
+        }
       >
         <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
       </TouchableOpacity>
