@@ -1,4 +1,11 @@
-import { View, Text, TouchableOpacity, Image, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  Alert,
+} from 'react-native';
 import React from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { styles } from './HeaderStyles';
@@ -6,6 +13,7 @@ import { colors } from '../../../utils/colors';
 
 type HeaderScreenProps = {
   onSearchPress?: () => void;
+  onNotificationPress?: () => void;
   searchOpen?: boolean;
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
@@ -14,6 +22,7 @@ type HeaderScreenProps = {
 
 export const HeaderScreen = ({
   onSearchPress,
+  onNotificationPress,
   searchOpen = false,
   searchQuery = '',
   onSearchChange,
@@ -53,13 +62,29 @@ export const HeaderScreen = ({
               <Text style={styles.Title}>Let's Go Shopping!</Text>
             </View>
 
-            <TouchableOpacity style={styles.searchBtn} onPress={onSearchPress}>
-              <Ionicons
-                name="search-outline"
-                size={22}
-                color={colors.textPrimary}
-              />
-            </TouchableOpacity>
+            <View style={styles.rightIcons}>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={
+                  onNotificationPress ||
+                  (() => Alert.alert('Notifications', 'Coming soon'))
+                }
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={22}
+                  color={colors.textPrimary}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.iconBtn} onPress={onSearchPress}>
+                <Ionicons
+                  name="search-outline"
+                  size={22}
+                  color={colors.textPrimary}
+                />
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </View>

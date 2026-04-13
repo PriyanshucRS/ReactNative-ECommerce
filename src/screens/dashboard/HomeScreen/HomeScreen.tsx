@@ -4,7 +4,6 @@ import {
   Image,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import React, { useMemo, useState, useEffect } from 'react';
@@ -236,6 +235,28 @@ const HomeScreen = () => {
     </TouchableOpacity>
   );
 
+  const skeletonItems = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => `skeleton-${index}`),
+    [],
+  );
+
+  const renderSkeletonCard = ({ item }: { item: string }) => (
+    <View key={item} style={styles.card}>
+      <View style={styles.Imgcontainer}>
+        <View style={styles.skeletonImage} />
+      </View>
+      <View style={styles.contentBox}>
+        <View style={styles.skeletonCategory} />
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonLine} />
+        <View style={styles.skeletonLineShort} />
+        <View style={styles.priceRow}>
+          <View style={styles.skeletonPrice} />
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <HeaderScreen
@@ -243,15 +264,22 @@ const HomeScreen = () => {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSearchClose={() => setSearchOpen(false)}
+        onNotificationPress={() => navigation.navigate('notificationsScreen')}
         onSearchPress={() => {
           setSearchOpen(prev => !prev);
           setFilterOpen(false);
         }}
       />
       {isLoading ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#007AFF" />
-        </View>
+        <FlatList
+          data={skeletonItems}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 86 }}
+          keyExtractor={item => item}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          renderItem={renderSkeletonCard}
+        />
       ) : (
         <>
           {showWelcome && authUser && (

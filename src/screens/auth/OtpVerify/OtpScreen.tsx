@@ -14,9 +14,7 @@ import type { RootStackParamList } from '../../../navigations/types';
 import { styles } from './OtpStyles';
 import { useLoginMutation, useVerifyOtpMutation } from '../../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import auth from '@react-native-firebase/auth';
-import { useDispatch } from 'react-redux';
-import { setFirebaseUser } from '../../../slices/authSlice';
+import { showWelcomeNotification } from '../../../services/notificationService';
 
 const OTP_LEN = 6;
 const DEFAULT_EXPIRES_SECONDS = 5 * 60;
@@ -30,15 +28,6 @@ const parseIdentifier = (value: string) => {
   return { phone };
 };
 
-const normalizePhoneForFirebase = (rawPhone: string) => {
-  const cleaned = rawPhone.trim().replace(/[^\d+]/g, '');
-  if (cleaned.startsWith('+')) return cleaned;
-  const digitsOnly = cleaned.replace(/[^\d]/g, '');
-  if (digitsOnly.length === 10) return `+91${digitsOnly}`;
-  if (digitsOnly.length > 10) return `+${digitsOnly}`;
-  return '';
-};
-
 const formatSeconds = (totalSeconds: number) => {
   const s = Math.max(0, Math.floor(totalSeconds));
   const mm = `${Math.floor(s / 60)}`.padStart(2, '0');
@@ -50,15 +39,10 @@ const OtpScreen = () => {
   type OtpRouteProp = RouteProp<RootStackParamList, 'otpScreen'>;
   const route = useRoute<OtpRouteProp>();
   const navigation = useNavigation<any>();
-  const dispatch = useDispatch();
 
   const params = route.params as RootStackParamList['otpScreen'] | undefined;
   const identifier = params?.identifier || '';
-  const authMode = params?.authMode || 'backend';
   const initialExpires = DEFAULT_EXPIRES_SECONDS;
-  const [verificationId, setVerificationId] = useState(
-    params?.verificationId || '',
-  );
 
   const [requestOtp, { isLoading: isResending }] = useLoginMutation();
   const [verifyOtp, { isLoading: isVerifying }] = useVerifyOtpMutation();
@@ -146,46 +130,63 @@ const OtpScreen = () => {
 
   const onVerify = async () => {
     if (!isComplete) {
+      console.warn('[OTP][FRONTEND] Verify blocked: OTP incomplete', {
+        otpLength: otp.length,
+      });
       Alert.alert('Error', 'Please enter the full OTP');
       return;
     }
     if (isExpired) {
+      console.warn('[OTP][FRONTEND] Verify blocked: OTP expired on timer');
       Alert.alert('OTP Expired', 'OTP expire ho gaya. Please resend OTP.');
       return;
     }
 
     try {
-      if (authMode === 'firebase_phone') {
-        if (!verificationId) {
-          Alert.alert('Error', 'Verification missing. Please resend OTP.');
-          return;
-        }
-        const credential = auth.PhoneAuthProvider.credential(
-          verificationId,
-          otp,
-        );
-        const credentialResult = await auth().signInWithCredential(credential);
-        const firebaseUser = credentialResult.user;
-        const displayName = firebaseUser.displayName || '';
-        const [firstName = 'Phone', ...rest] = displayName.split(' ');
-        const lastName = rest.join(' ') || 'User';
-        dispatch(
-          setFirebaseUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || `${identifier}@phone.local`,
-            firstName,
-            lastName,
-          }),
-        );
-      } else {
-        const payload = parseIdentifier(identifier);
-        await verifyOtp({ ...payload, otp }).unwrap();
+      const payload = parseIdentifier(identifier);
+      console.log('[OTP][FRONTEND] Verify request', {
+        identifier,
+        payload,
+        otpLength: otp.length,
+      });
+      const response: any = await verifyOtp({ ...payload, otp }).unwrap();
+      console.log('[OTP][FRONTEND] Verify success', {
+        uid: response?.user?.uid,
+        email: response?.user?.email,
+        hasAccessToken: Boolean(response?.accessToken),
+        hasRefreshToken: Boolean(response?.refreshToken),
+      });
+      if (response?.accessToken) {
+        await AsyncStorage.setItem('token', response.accessToken);
+      }
+      if (response?.refreshToken) {
+        await AsyncStorage.setItem('refreshToken', response.refreshToken);
       }
       await AsyncStorage.setItem('userVerified', 'true');
+
+      const firstName = response?.user?.firstName || '';
+      const lastName = response?.user?.lastName || '';
+      const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      try {
+        await showWelcomeNotification(fullName || 'User');
+      } catch (notificationErr: any) {
+        console.error('[OTP][FRONTEND] Notification failed (non-blocking)', {
+          message: notificationErr?.message,
+          code: notificationErr?.code,
+        });
+      }
+
       Alert.alert('Success', 'Logged in successfully!');
       navigation.replace('MainDrawer');
     } catch (err: any) {
-      const msg = err?.data?.message || 'OTP verification failed';
+      const msg =
+        err?.data?.message || err?.message || 'OTP verification failed';
+      console.error('[OTP][FRONTEND] Verify failed', {
+        message: msg,
+        status: err?.status,
+        data: err?.data,
+        rawError: err,
+      });
       if (`${msg}`.toLowerCase().includes('expired')) {
         setRemainingSeconds(0);
       }
@@ -195,25 +196,26 @@ const OtpScreen = () => {
 
   const onResend = async () => {
     try {
-      let responseMessage = 'OTP resent successfully';
-      if (authMode === 'firebase_phone') {
-        const normalizedPhone = normalizePhoneForFirebase(identifier);
-        if (!normalizedPhone) {
-          Alert.alert('Error', 'Invalid phone number');
-          return;
-        }
-        const confirmation = await auth().signInWithPhoneNumber(normalizedPhone);
-        setVerificationId(confirmation.verificationId ?? '');
-      } else {
-        const payload = parseIdentifier(identifier);
-        const response: any = await requestOtp(payload).unwrap();
-        responseMessage = response?.message || responseMessage;
-      }
+      const payload = parseIdentifier(identifier);
+      console.log('[OTP][FRONTEND] Resend request', {
+        identifier,
+        payload,
+      });
+      const response: any = await requestOtp(payload).unwrap();
+      const responseMessage = response?.message || 'OTP resent successfully';
+      console.log('[OTP][FRONTEND] Resend success', {
+        message: responseMessage,
+      });
       setDigits(Array.from({ length: OTP_LEN }, () => ''));
       setRemainingSeconds(DEFAULT_EXPIRES_SECONDS);
       requestAnimationFrame(() => inputsRef.current[0]?.focus?.());
       Alert.alert('Success', responseMessage);
     } catch (err: any) {
+      console.error('[OTP][FRONTEND] Resend failed', {
+        status: err?.status,
+        data: err?.data,
+        rawError: err,
+      });
       Alert.alert('Error', err?.data?.message || 'Failed to resend OTP');
     }
   };

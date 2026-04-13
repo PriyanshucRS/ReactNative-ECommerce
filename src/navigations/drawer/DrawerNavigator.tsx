@@ -5,6 +5,7 @@ import HomeScreen from '../../screens/dashboard/HomeScreen/HomeScreen';
 import CartScreen from '../../screens/dashboard/CartScreen/CartScreen';
 import AddProductScreen from '../../screens/dashboard/AddProductScreen/AddProductScreen';
 import WatchlistScreen from '../../screens/dashboard/WatchlistScreen/WatchlistScreen';
+import NotificationsScreen from '../../screens/dashboard/Notifications/NotificationsScreen';
 import {
   CustomDrawerContent,
   HomeDrawerIcon,
@@ -66,6 +67,15 @@ const DrawerNavigator = () => {
         options={{
           title: 'Watchlist',
           drawerIcon: WatchlistDrawerIcon,
+        }}
+      />
+
+      <Drawer.Screen
+        name="notificationsScreen"
+        component={NotificationsScreen}
+        options={{
+          title: 'Notifications',
+          drawerItemStyle: { display: 'none' },
         }}
       />
     </Drawer.Navigator>

@@ -9,6 +9,7 @@ const cors = require('cors');
 
 const authRoutes = require('./src/routes/authRoutes');
 const { verifySmtpOnStartup } = require('./src/controllers/auth.controller');
+const { connectMongo } = require('./src/service/mongoService');
 const productRoutes = require('./src/routes/productRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
 const watchlistRoutes = require('./src/routes/watchlistRouter');
@@ -32,7 +33,15 @@ app.use('/api/watchlist', watchlistRoutes);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Firebase Server running on port ${PORT}`);
-  verifySmtpOnStartup();
+const startServer = async () => {
+  await connectMongo();
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} (MongoDB connected)`);
+    verifySmtpOnStartup();
+  });
+};
+
+startServer().catch(error => {
+  console.error('Failed to start server:', error?.message || error);
+  process.exit(1);
 });

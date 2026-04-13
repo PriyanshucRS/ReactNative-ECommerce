@@ -84,10 +84,19 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
     try {
       dispatch(signout());
       if (typeof AsyncStorage.multiRemove === 'function') {
-        await AsyncStorage.multiRemove(['userVerified', 'persist:root']);
+        await AsyncStorage.multiRemove([
+          'userVerified',
+          'persist:root',
+          'token',
+          'accessToken',
+          'refreshToken',
+        ]);
       } else {
         await AsyncStorage.removeItem('userVerified');
         await AsyncStorage.removeItem('persist:root');
+        await AsyncStorage.removeItem('token');
+        await AsyncStorage.removeItem('accessToken');
+        await AsyncStorage.removeItem('refreshToken');
       }
       await persistor?.purge?.();
 

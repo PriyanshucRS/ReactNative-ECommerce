@@ -40,8 +40,6 @@ const authSlice = createSlice({
     },
     setFirebaseUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
-      state.accessToken = null;
-      state.refreshToken = null;
     },
     signout: state => {
       state.user = null;

@@ -14,8 +14,7 @@ export type RootStackParamList = {
   loginScreen: undefined;
   otpScreen: {
     identifier: string;
-    authMode: 'backend' | 'firebase_phone';
-    verificationId?: string;
+    authMode: 'backend';
   };
   registerScreen:
     | undefined

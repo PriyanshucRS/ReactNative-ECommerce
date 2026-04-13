@@ -1,70 +1,71 @@
-const { db } = require('./firebaseService');
+// Firebase reference kept for migration history:
+// const { db } = require('./firebaseService');
+// const productsRef = db.collection('products');
+// const cartsRef = db.collection('carts');
+// const watchlistRef = db.collection('watchlist');
+const Product = require('../models/product.model');
+const Cart = require('../models/cart.model');
+const Wishlist = require('../models/wishlist.model');
 
-// Firestore collection reference
-const productsRef = db.collection('products');
-const cartsRef = db.collection('carts');
-const watchlistRef = db.collection('watchlist');
+const toProductResponse = doc => {
+  const obj = doc.toObject();
+  return {
+    id: String(obj._id),
+    ...obj,
+    _id: undefined,
+    __v: undefined,
+  };
+};
 
 // Get all products
 const getAllProducts = async (filters = {}) => {
-  let query = productsRef;
-
-  // Apply filters (price, category, etc.)
-  if (filters.category) {
-    query = query.where('category', '==', filters.category);
-  }
-  if (filters.maxPrice) {
-    query = query.where('price', '<=', parseFloat(filters.maxPrice));
-  }
-
-  const snapshot = await query.get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const query = {};
+  if (filters.category) query.category = filters.category;
+  if (filters.maxPrice) query.price = { $lte: parseFloat(filters.maxPrice) };
+  const docs = await Product.find(query).sort({ createdAt: -1 });
+  return docs.map(toProductResponse);
 };
 
 // Get products by user ID
 const getProductsByUserId = async userId => {
-  const snapshot = await productsRef.where('userId', '==', userId).get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const docs = await Product.find({ userId }).sort({ createdAt: -1 });
+  return docs.map(toProductResponse);
 };
 
 // Get product by ID
 const getProductById = async id => {
-  const doc = await productsRef.doc(id).get();
-  if (!doc.exists) throw new Error('Product not found');
-  return { id: doc.id, ...doc.data() };
+  const doc = await Product.findById(id);
+  if (!doc) throw new Error('Product not found');
+  return toProductResponse(doc);
 };
 
 // Create product
 const createProduct = async (productData, userId) => {
-  const product = {
+  const doc = await Product.create({
     ...productData,
     userId,
-    createdAt: new Date(),
-  };
-  const docRef = await productsRef.add(product);
-  return { id: docRef.id, ...product };
+  });
+  return toProductResponse(doc);
 };
 
 // Delete product
 const deleteProduct = async (id, userId) => {
-  const doc = await productsRef.doc(id).get();
-  if (!doc.exists) throw new Error('Product not found');
-
-  const productData = doc.data();
+  const doc = await Product.findById(id);
+  if (!doc) throw new Error('Product not found');
+  const productData = doc.toObject();
   if (productData.userId !== userId) {
     throw new Error('You can only delete your own products!');
   }
 
-  await productsRef.doc(id).delete();
+  await Product.deleteOne({ _id: id });
   return productData;
 };
 
 // Update product (only owner)
 const updateProduct = async (id, userId, updates) => {
-  const doc = await productsRef.doc(id).get();
-  if (!doc.exists) throw new Error('Product not found');
-
-  const productData = doc.data();
+  const doc = await Product.findById(id);
+  if (!doc) throw new Error('Product not found');
+  const productData = doc.toObject();
   if (productData.userId !== userId) {
     throw new Error('You can only edit your own products!');
   }
@@ -82,34 +83,25 @@ const updateProduct = async (id, userId, updates) => {
     return { id, ...productData };
   }
 
-  await productsRef.doc(id).update({
-    ...safeUpdates,
-    updatedAt: new Date(),
-  });
-
-  const updatedDoc = await productsRef.doc(id).get();
-
-  // Propagate product changes into carts and watchlists immediately,
-  // so Firestore DB stays in sync without waiting for UI refresh.
-  const updatedProduct = updatedDoc.data() || {};
+  const updatedDoc = await Product.findByIdAndUpdate(
+    id,
+    { $set: safeUpdates },
+    { returnDocument: 'after' },
+  );
+  const updatedProduct = updatedDoc?.toObject() || {};
 
   const getItemStoredProductId = item =>
     item?.productId || item?.id || item?._id;
 
-  // Firestore nested array queries may require composite indexes, so we do a
-  // safe scan to guarantee DB consistency (small project scale).
-  const cartsSnap = await cartsRef.get();
-  const cartBatchUpdates = cartsSnap.docs
-    .filter(docRef =>
-      (docRef.data()?.items || []).some(i => getItemStoredProductId(i) === id),
-    )
-    .map(async docRef => {
-      const cartData = docRef.data() || {};
-      const items = cartData.items || [];
-      const nextItems = items.map(item =>
+  const carts = await Cart.find({
+    items: { $elemMatch: { productId: id } },
+  });
+  await Promise.all(
+    carts.map(async cartDoc => {
+      const nextItems = (cartDoc.items || []).map(item =>
         getItemStoredProductId(item) === id
           ? {
-              ...item,
+              ...item.toObject(),
               productId: id,
               title: updatedProduct.title,
               price: updatedProduct.price,
@@ -120,25 +112,20 @@ const updateProduct = async (id, userId, updates) => {
             }
           : item,
       );
-      await docRef.ref.set(
-        { items: nextItems, updatedAt: new Date() },
-        { merge: true },
-      );
-    });
-  await Promise.all(cartBatchUpdates);
+      cartDoc.items = nextItems;
+      await cartDoc.save();
+    }),
+  );
 
-  const watchSnap = await watchlistRef.get();
-  const watchBatchUpdates = watchSnap.docs
-    .filter(docRef =>
-      (docRef.data()?.items || []).some(i => getItemStoredProductId(i) === id),
-    )
-    .map(async docRef => {
-      const watchData = docRef.data() || {};
-      const items = watchData.items || [];
-      const nextItems = items.map(item =>
+  const watchlists = await Wishlist.find({
+    items: { $elemMatch: { productId: id } },
+  });
+  await Promise.all(
+    watchlists.map(async watchDoc => {
+      const nextItems = (watchDoc.items || []).map(item =>
         getItemStoredProductId(item) === id
           ? {
-              ...item,
+              ...item.toObject(),
               productId: id,
               title: updatedProduct.title,
               price: updatedProduct.price,
@@ -149,14 +136,12 @@ const updateProduct = async (id, userId, updates) => {
             }
           : item,
       );
-      await docRef.ref.set(
-        { items: nextItems, updatedAt: new Date() },
-        { merge: true },
-      );
-    });
-  await Promise.all(watchBatchUpdates);
+      watchDoc.items = nextItems;
+      await watchDoc.save();
+    }),
+  );
 
-  return { id: updatedDoc.id, ...updatedDoc.data() };
+  return toProductResponse(updatedDoc);
 };
 
 module.exports = {

@@ -10,7 +10,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 16,
   },
-  searchBtn: {
+  rightIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBtn: {
     padding: 8,
     width: 40,
     alignItems: 'center',

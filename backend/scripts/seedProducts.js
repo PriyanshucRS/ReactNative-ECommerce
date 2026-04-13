@@ -1,19 +1,14 @@
 /**
- * Seeds sample products into Firestore `products` collection.
- *
- * Requirements:
- * - `backend/firebaseServiceAccountKey.json` must exist (same as server).
- * - Run from repo: `cd backend && node scripts/seedProducts.js`
- *
- * Optional env:
- * - SEED_USER_ID — stored as product `userId` (default: "seed-demo")
+ * Seeds sample products into MongoDB `products` collection.
+ * Run from repo: `cd backend && node scripts/seedProducts.js`
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-
-// Same credentials as server (`backend/firebaseServiceAccountKey.json`).
-const { db } = require('../src/service/firebaseService');
-const admin = require('firebase-admin');
+// Firebase seeding references kept for migration history:
+// const { db } = require('../src/service/firebaseService');
+// const admin = require('firebase-admin');
+const { connectMongo } = require('../src/service/mongoService');
+const Product = require('../src/models/product.model');
 
 const SEED_USER_ID = process.env.SEED_USER_ID || 'seed-demo';
 
@@ -64,20 +59,15 @@ const PRODUCTS = [
 ];
 
 async function main() {
-  const batch = db.batch();
-  const col = db.collection('products');
-
-  PRODUCTS.forEach(p => {
-    const ref = col.doc();
-    batch.set(ref, {
+  await connectMongo();
+  await Product.insertMany(
+    PRODUCTS.map(p => ({
       ...p,
       userId: SEED_USER_ID,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  });
-
-  await batch.commit();
-  console.log(`Seeded ${PRODUCTS.length} products into Firestore (userId=${SEED_USER_ID}).`);
+    })),
+  );
+  console.log(`Seeded ${PRODUCTS.length} products into MongoDB (userId=${SEED_USER_ID}).`);
+  process.exit(0);
 }
 
 main().catch(err => {

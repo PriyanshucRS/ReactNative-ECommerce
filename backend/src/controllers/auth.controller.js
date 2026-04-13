@@ -1,5 +1,8 @@
-const { db } = require('../service/firebaseService');
-const admin = require('firebase-admin');
+// Firebase references kept for migration history:
+// const { db } = require('../service/firebaseService');
+// const admin = require('firebase-admin');
+const User = require('../models/user.model');
+const AuthOtp = require('../models/authOtp.model');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
@@ -22,12 +25,23 @@ const generateTokens = (uid, email) => {
 const normalizeEmail = email => email?.trim()?.toLowerCase() || '';
 const normalizePhone = phone => `${phone || ''}`.replace(/[^\d]/g, '');
 const makeOtp = () => `${Math.floor(100000 + Math.random() * 900000)}`;
-const otpRef = db.collection('authOtps');
 let smtpTransporter = null;
 
-const getIdentifier = ({ email }) => {
+const getIdentifier = ({ email, phone }) => {
   const normalizedEmail = normalizeEmail(email);
-  if (normalizedEmail) return { key: `email:${normalizedEmail}`, type: 'email', value: normalizedEmail };
+  if (normalizedEmail)
+    return {
+      key: `email:${normalizedEmail}`,
+      type: 'email',
+      value: normalizedEmail,
+    };
+  const normalizedPhone = normalizePhone(phone);
+  if (normalizedPhone)
+    return {
+      key: `phone:${normalizedPhone}`,
+      type: 'phone',
+      value: normalizedPhone,
+    };
   return null;
 };
 
@@ -102,49 +116,51 @@ const sendOtpOutOfBand = async ({ type, value, otp }) => {
   return true;
 };
 
-const findUserByEmail = async ({ email }) => {
+const findUserByIdentifier = async ({ email, phone }) => {
   const normalizedEmail = normalizeEmail(email);
+  const normalizedPhone = normalizePhone(phone);
 
   if (normalizedEmail) {
-    const byEmail = await db
-      .collection('users')
-      .where('email', '==', normalizedEmail)
-      .limit(1)
-      .get();
-    if (!byEmail.empty) return byEmail.docs[0];
+    return User.findOne({ email: normalizedEmail });
+  }
+  if (normalizedPhone) {
+    return User.findOne({ phone: normalizedPhone });
   }
 
   return null;
 };
 
-const isFirebaseAuthzError = error => {
-  const code = error?.code;
-  const details = `${error?.details || ''}`.toLowerCase();
-  const msg = `${error?.message || ''}`.toLowerCase();
-  return (
-    code === 16 ||
-    details.includes('invalid authentication credentials') ||
-    msg.includes('unauthenticated')
-  );
-};
-
 // Login (request OTP by email)
 exports.login = async (req, res) => {
   try {
-    const { email } = req.body;
-    const identifier = getIdentifier({ email });
+    const { email, phone } = req.body;
+    console.log('[AUTH][LOGIN] Request received', {
+      email: normalizeEmail(email) || null,
+      phone: normalizePhone(phone) || null,
+    });
+    const identifier = getIdentifier({ email, phone });
     if (!identifier) {
-      return res.status(400).json({ message: 'Email is required' });
+      console.warn('[AUTH][LOGIN] Missing identifier in request');
+      return res.status(400).json({ message: 'Email or phone is required' });
     }
+    console.log('[AUTH][LOGIN] Identifier resolved', {
+      key: identifier.key,
+      type: identifier.type,
+      value: identifier.value,
+    });
 
     try {
-      const userDoc = await findUserByEmail({ email });
+      const userDoc = await findUserByIdentifier({ email, phone });
       if (!userDoc) {
+        console.warn('[AUTH][LOGIN] User not found for identifier', {
+          key: identifier.key,
+        });
         return res.status(404).json({
           message: 'User not registered. Please register first.',
           shouldRegister: true,
           prefill: {
             email: normalizeEmail(email) || undefined,
+            phone: normalizePhone(phone) || undefined,
           },
         });
       }
@@ -152,36 +168,43 @@ exports.login = async (req, res) => {
       const otp = makeOtp();
       const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-      await otpRef.doc(identifier.key).set(
+      await AuthOtp.findOneAndUpdate(
+        { key: identifier.key },
         {
+          key: identifier.key,
           otp,
-          uid: userDoc.id,
+          uid: String(userDoc._id),
           type: identifier.type,
           value: identifier.value,
           expiresAt,
           attempts: 0,
-          createdAt: new Date(),
         },
-        { merge: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       );
+      console.log('[AUTH][LOGIN] OTP stored', {
+        key: identifier.key,
+        uid: String(userDoc._id),
+        expiresAt: expiresAt.toISOString(),
+      });
 
       await sendOtpOutOfBand({
         type: identifier.type,
         value: identifier.value,
         otp,
       });
+      console.log('[AUTH][LOGIN] OTP delivery flow completed', {
+        key: identifier.key,
+        type: identifier.type,
+      });
 
       return res.json({
         message: `OTP sent to your ${identifier.type}.`,
       });
     } catch (error) {
-      console.error('OTP Send Error:', error?.message || error);
-      if (isFirebaseAuthzError(error)) {
-        return res.status(500).json({
-          message:
-            'Server Firebase credentials invalid. Refresh service account key and Firestore IAM permissions.',
-        });
-      }
+      console.error('[AUTH][LOGIN] OTP send/store failed', {
+        message: error?.message || 'Unknown error',
+        stack: error?.stack,
+      });
       if (error?.otpDeliveryType === 'email') {
         return res.status(500).json({
           message:
@@ -198,54 +221,90 @@ exports.login = async (req, res) => {
 // Verify OTP and issue app tokens
 exports.verifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
-    const identifier = getIdentifier({ email });
+    const { email, phone, otp } = req.body;
+    console.log('[AUTH][VERIFY] Request received', {
+      email: normalizeEmail(email) || null,
+      phone: normalizePhone(phone) || null,
+      otpLength: `${otp || ''}`.length,
+    });
+    const identifier = getIdentifier({ email, phone });
     if (!identifier || !otp) {
-      return res
-        .status(400)
-        .json({ message: 'Email and OTP are required' });
+      console.warn('[AUTH][VERIFY] Missing identifier or otp', {
+        hasIdentifier: Boolean(identifier),
+        hasOtp: Boolean(otp),
+      });
+      return res.status(400).json({ message: 'Email/phone and OTP are required' });
     }
+    console.log('[AUTH][VERIFY] Identifier resolved', {
+      key: identifier.key,
+      type: identifier.type,
+    });
 
-    const otpDoc = await otpRef.doc(identifier.key).get();
-    if (!otpDoc.exists) {
+    const otpDoc = await AuthOtp.findOne({ key: identifier.key });
+    if (!otpDoc) {
+      console.warn('[AUTH][VERIFY] OTP doc not found', { key: identifier.key });
       return res.status(400).json({ message: 'OTP not requested or expired' });
     }
+    console.log('[AUTH][VERIFY] OTP doc found', {
+      key: identifier.key,
+      attempts: otpDoc.attempts || 0,
+      expiresAt: otpDoc.expiresAt,
+    });
 
-    const otpData = otpDoc.data() || {};
+    const otpData = otpDoc;
     const now = Date.now();
-    const expiryMs = otpData.expiresAt?.toDate
-      ? otpData.expiresAt.toDate().getTime()
-      : new Date(otpData.expiresAt || 0).getTime();
+    const expiryMs = new Date(otpData.expiresAt || 0).getTime();
     if (!expiryMs || now > expiryMs) {
-      await otpRef.doc(identifier.key).delete();
+      console.warn('[AUTH][VERIFY] OTP expired', {
+        key: identifier.key,
+        nowIso: new Date(now).toISOString(),
+        expiryIso: otpData.expiresAt
+          ? new Date(otpData.expiresAt).toISOString()
+          : null,
+      });
+      await AuthOtp.deleteOne({ key: identifier.key });
       return res.status(400).json({ message: 'OTP expired. Request again.' });
     }
 
     if (`${otpData.otp || ''}` !== `${otp}`) {
-      await otpRef.doc(identifier.key).set(
-        { attempts: (otpData.attempts || 0) + 1 },
-        { merge: true },
+      console.warn('[AUTH][VERIFY] OTP mismatch', {
+        key: identifier.key,
+        expectedLength: `${otpData.otp || ''}`.length,
+        receivedLength: `${otp}`.length,
+      });
+      await AuthOtp.updateOne(
+        { key: identifier.key },
+        { $set: { attempts: (otpData.attempts || 0) + 1 } },
       );
       return res.status(401).json({ message: 'Invalid OTP' });
     }
+    console.log('[AUTH][VERIFY] OTP matched');
 
-    const userDoc = await db.collection('users').doc(otpData.uid).get();
-    if (!userDoc.exists) {
+    const userDoc = await User.findById(otpData.uid);
+    if (!userDoc) {
+      console.warn('[AUTH][VERIFY] User not found for OTP uid', {
+        uid: otpData.uid,
+        key: identifier.key,
+      });
       return res.status(401).json({
         message: 'User not found. Please register first.',
       });
     }
 
-    const userData = userDoc.data() || {};
+    const userData = userDoc;
     const { accessToken, refreshToken } = generateTokens(
-      userDoc.id,
+      String(userDoc._id),
       userData.email,
     );
 
-    await otpRef.doc(identifier.key).delete();
+    await AuthOtp.deleteOne({ key: identifier.key });
+    console.log('[AUTH][VERIFY] OTP verify success', {
+      uid: String(userDoc._id),
+      key: identifier.key,
+    });
     return res.json({
       user: {
-        uid: userDoc.id,
+        uid: String(userDoc._id),
         email: userData.email,
         firstName: userData.firstName,
         lastName: userData.lastName,
@@ -255,6 +314,10 @@ exports.verifyOtp = async (req, res) => {
       refreshToken,
     });
   } catch (error) {
+    console.error('[AUTH][VERIFY] Unexpected failure', {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack,
+    });
     return res.status(400).json({ message: 'OTP verification failed' });
   }
 };
@@ -276,41 +339,28 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
     try {
-      // Firestore is the source-of-truth for "registered" users.
-      const existingUserSnap = await db
-        .collection('users')
-        .where('email', '==', normalizedEmail)
-        .limit(1)
-        .get();
-      if (!existingUserSnap.empty) {
+      const existingUser = await User.findOne({ email: normalizedEmail });
+      if (existingUser) {
         return res.status(409).json({
           message: 'Email already registered. Please login.',
         });
       }
-      const existingPhoneSnap = await db
-        .collection('users')
-        .where('phone', '==', normalizedPhone)
-        .limit(1)
-        .get();
-      if (!existingPhoneSnap.empty) {
+      const existingPhone = await User.findOne({ phone: normalizedPhone });
+      if (existingPhone) {
         return res.status(409).json({
           message: 'Phone already registered. Please login.',
         });
       }
 
-      const uid = db.collection('users').doc().id;
-
-      await db.collection('users').doc(uid).set({
-        uid,
+      await User.create({
         email: normalizedEmail,
         phone: normalizedPhone,
         firstName: normalizedFirstName,
         lastName: normalizedLastName,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       res.json({ message: 'Account created. Please login with OTP.' });
     } catch (error) {
-      console.error('Firebase Register Error:', error);
+      console.error('Register Error:', error);
       res.status(400).json({ message: error.message });
     }
   } catch (error) {
@@ -330,16 +380,15 @@ exports.refresh = async (req, res) => {
       process.env.JWT_REFRESH_SECRET || 'refresh_secret',
     );
     const { uid } = decoded;
-    const userDoc = await db.collection('users').doc(uid).get();
-    const userData = userDoc.data();
-    if (!userDoc.exists || !userData) {
+    const userDoc = await User.findById(uid);
+    if (!userDoc) {
       return res.status(403).json({
         message: 'User not found in database. Please register again.',
       });
     }
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(
       uid,
-      userData.email,
+      userDoc.email,
     );
     res.json({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {
@@ -350,4 +399,50 @@ exports.refresh = async (req, res) => {
 // Logout (client-side token clear)
 exports.logout = async (req, res) => {
   res.json({ message: 'Logged out successfully' });
+};
+
+// Google Login (issues backend JWT for existing user email)
+exports.googleLogin = async (req, res) => {
+  try {
+    const { email, firstName, lastName } = req.body || {};
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'email is required' });
+    }
+
+    const userDoc = await User.findOne({ email: normalizedEmail });
+    if (!userDoc) {
+      return res.status(404).json({
+        message: 'User not registered. Please register first.',
+        shouldRegister: true,
+        prefill: {
+          email: normalizedEmail,
+          firstName: firstName?.trim() || undefined,
+          lastName: lastName?.trim() || undefined,
+        },
+      });
+    }
+
+    const { accessToken, refreshToken } = generateTokens(
+      String(userDoc._id),
+      userDoc.email,
+    );
+    return res.json({
+      user: {
+        uid: String(userDoc._id),
+        email: userDoc.email,
+        firstName: userDoc.firstName,
+        lastName: userDoc.lastName,
+        phone: userDoc.phone,
+      },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    console.error('[AUTH][GOOGLE_LOGIN] Failed', {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack,
+    });
+    return res.status(500).json({ message: 'Google login failed' });
+  }
 };

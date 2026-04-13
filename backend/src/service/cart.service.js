@@ -1,8 +1,9 @@
-const { db } = require('./firebaseService');
-
-// Firestore references
-const cartsRef = db.collection('carts');
-const productsRef = db.collection('products');
+// Firebase reference kept for migration history:
+// const { db } = require('./firebaseService');
+// const cartsRef = db.collection('carts');
+// const productsRef = db.collection('products');
+const Cart = require('../models/cart.model');
+const Product = require('../models/product.model');
 
 const calculateTotal = items =>
   items
@@ -13,10 +14,9 @@ const getItemProductId = item => item?.productId || item?.id || item?._id;
 
 const resolveProductDocumentById = async productId => {
   if (!productId) return null;
-
-  const productDoc = await productsRef.doc(productId).get();
-  if (!productDoc.exists) return null;
-  return { id: productDoc.id, data: productDoc.data() };
+  const productDoc = await Product.findById(productId);
+  if (!productDoc) return null;
+  return { id: String(productDoc._id), data: productDoc.toObject() };
 };
 
 // Mark invalid products instead of removing them
@@ -50,19 +50,16 @@ const cleanInvalidProducts = async items => {
 
 // Get cart by user ID
 const getCartByUserId = async userId => {
-  const doc = await cartsRef.doc(userId).get();
-  if (!doc.exists) return { items: [], totalPrice: 0 };
-  let cart = doc.data();
-  let items = cart?.items || [];
+  const cartDoc = await Cart.findOne({ userId });
+  if (!cartDoc) return { items: [], totalPrice: 0 };
+  let items = cartDoc.items || [];
 
   // Clean invalid products
   items = await cleanInvalidProducts(items);
 
   // Persist cleaned cart
-  await cartsRef.doc(userId).set({
-    items,
-    updatedAt: new Date(),
-  });
+  cartDoc.items = items;
+  await cartDoc.save();
 
   return {
     items,
@@ -77,12 +74,8 @@ const addItemToCart = async (userId, productId, quantity) => {
 
   const product = resolvedProduct.data;
   const resolvedProductId = resolvedProduct.id;
-  const cartDoc = await cartsRef.doc(userId).get();
-
-  let items = [];
-  if (cartDoc.exists) {
-    items = cartDoc.data().items || [];
-  }
+  const cartDoc = await Cart.findOne({ userId });
+  let items = cartDoc?.items || [];
 
   const itemIndex = items.findIndex(
     item => getItemProductId(item) === resolvedProductId,
@@ -104,16 +97,19 @@ const addItemToCart = async (userId, productId, quantity) => {
   // Clean invalid products using reusable function
   items = await cleanInvalidProducts(items);
 
-  await cartsRef.doc(userId).set({ items, updatedAt: new Date() });
+  await Cart.findOneAndUpdate(
+    { userId },
+    { $set: { userId, items } },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  );
   return { items, totalPrice: calculateTotal(items) };
 };
 
 // Update item quantity
 const updateItemQuantity = async (userId, productId, quantity) => {
-  const cartDoc = await cartsRef.doc(userId).get();
-  if (!cartDoc.exists) throw new Error('Cart not found');
-
-  const cart = cartDoc.data();
+  const cartDoc = await Cart.findOne({ userId });
+  if (!cartDoc) throw new Error('Cart not found');
+  const cart = cartDoc.toObject();
   const itemIndex = cart.items.findIndex(
     item => getItemProductId(item) === productId,
   );
@@ -121,24 +117,25 @@ const updateItemQuantity = async (userId, productId, quantity) => {
 
   cart.items[itemIndex].quantity = quantity;
 
-  await cartsRef.doc(userId).set({ items: cart.items, updatedAt: new Date() });
+  cartDoc.items = cart.items;
+  await cartDoc.save();
   return { items: cart.items, totalPrice: calculateTotal(cart.items) };
 };
 
 // Remove item from cart
 const removeItemFromCart = async (userId, productId) => {
-  const cartDoc = await cartsRef.doc(userId).get();
-  if (!cartDoc.exists) throw new Error('Cart not found');
-
-  let cart = cartDoc.data();
+  const cartDoc = await Cart.findOne({ userId });
+  if (!cartDoc) throw new Error('Cart not found');
+  let cart = cartDoc.toObject();
   cart.items = cart.items.filter(item => getItemProductId(item) !== productId);
 
   if (cart.items.length === 0) {
-    await cartsRef.doc(userId).delete();
+    await Cart.deleteOne({ userId });
     return { items: [], totalPrice: 0 };
   }
 
-  await cartsRef.doc(userId).set({ items: cart.items, updatedAt: new Date() });
+  cartDoc.items = cart.items;
+  await cartDoc.save();
   return { items: cart.items, totalPrice: calculateTotal(cart.items) };
 };
 

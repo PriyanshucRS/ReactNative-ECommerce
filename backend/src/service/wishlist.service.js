@@ -1,23 +1,24 @@
-const { db } = require('./firebaseService');
-const productsRef = db.collection('products');
-const watchlistRef = db.collection('watchlist');
+// Firebase reference kept for migration history:
+// const { db } = require('./firebaseService');
+// const productsRef = db.collection('products');
+// const watchlistRef = db.collection('watchlist');
+const Product = require('../models/product.model');
+const Wishlist = require('../models/wishlist.model');
 
 const getItemProductId = item => item?.productId || item?.id || item?._id;
 
 const resolveProductDocumentById = async productId => {
   if (!productId) return null;
-
-  const productDoc = await productsRef.doc(productId).get();
-  if (!productDoc.exists) return null;
-  return { id: productDoc.id, data: productDoc.data() };
+  const productDoc = await Product.findById(productId);
+  if (!productDoc) return null;
+  return { id: String(productDoc._id), data: productDoc.toObject() };
 };
 
 // Get wishlist by user
 const getWatchlistByUser = async userId => {
-  const watchlistDoc = await watchlistRef.doc(userId).get();
-  if (!watchlistDoc.exists) return { items: [] };
-
-  const data = watchlistDoc.data();
+  const watchlistDoc = await Wishlist.findOne({ userId });
+  if (!watchlistDoc) return { items: [] };
+  const data = watchlistDoc.toObject();
   const items = data?.items || [];
 
   // Mark items as unavailable if the product was deleted from `products`.
@@ -46,19 +47,16 @@ const getWatchlistByUser = async userId => {
     }
   }
 
-  // Persist refreshed items back to Firestore so DB stays in sync.
+  // Persist refreshed items back so DB stays in sync.
   if (cleaned.length === 0) {
-    await watchlistRef.doc(userId).delete();
+    await Wishlist.deleteOne({ userId });
     return { items: [] };
   }
 
-  await watchlistRef.doc(userId).set(
-    {
-      ...data,
-      items: cleaned,
-      updatedAt: new Date(),
-    },
-    { merge: true },
+  await Wishlist.findOneAndUpdate(
+    { userId },
+    { $set: { userId, items: cleaned } },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   return { ...data, items: cleaned };
@@ -66,12 +64,8 @@ const getWatchlistByUser = async userId => {
 
 // Toggle wishlist item
 const toggleWishlist = async (userId, productId) => {
-  const wishlistDoc = await watchlistRef.doc(userId).get();
-  let items = [];
-
-  if (wishlistDoc.exists) {
-    items = wishlistDoc.data().items || [];
-  }
+  const wishlistDoc = await Wishlist.findOne({ userId });
+  let items = wishlistDoc?.items || [];
 
   // If item already exists in wishlist, allow removal even if product is deleted.
   const itemIndex = items.findIndex(item => getItemProductId(item) === productId);
@@ -96,9 +90,13 @@ const toggleWishlist = async (userId, productId) => {
   }
 
   if (items.length === 0) {
-    await watchlistRef.doc(userId).delete();
+    await Wishlist.deleteOne({ userId });
   } else {
-    await watchlistRef.doc(userId).set({ items, updatedAt: new Date() });
+    await Wishlist.findOneAndUpdate(
+      { userId },
+      { $set: { userId, items } },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+    );
   }
 
   return { items };
