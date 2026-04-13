@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ScrollView,
   Text,
@@ -9,10 +9,7 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import type { StackScreenProps } from '@react-navigation/stack';
-import {
-  useAddToCartMutation,
-  useGetCartQuery,
-} from '../../../services/api';
+import { useAddToCartMutation, useGetCartQuery } from '../../../services/api';
 import {
   useDeleteProductMutation,
   useGetProductByIdQuery,
@@ -22,19 +19,25 @@ import { getProductId } from '../../../utils/helpers';
 import type { RootStackParamList } from '../../../navigations/types';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store/store';
-import BottomTabs from '../../../components/BottomTabs';
+import BottomTabs, {
+  useBottomTabsContentPadding,
+} from '../../../components/BottomTabs';
 
 type DetailsScreenProps = StackScreenProps<RootStackParamList, 'detailsScreen'>;
 
 const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
+  const bottomSpacing = useBottomTabsContentPadding();
   const { product: routeProduct } = route.params;
   const [addToCart] = useAddToCartMutation();
   const [deleteProduct] = useDeleteProductMutation();
   const authUser = useSelector((state: RootState) => state.auth.user);
   const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
-  const { data: cartItems = [] } = useGetCartQuery(undefined, {
-    skip: !isLoggedIn,
-  });
+  const { data: cartItems = [], refetch: refetchCart } = useGetCartQuery(
+    undefined,
+    {
+      skip: !isLoggedIn,
+    },
+  );
 
   const productId = getProductId(routeProduct);
   const { data: liveProduct } = useGetProductByIdQuery(productId, {
@@ -51,7 +54,20 @@ const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
   const existingCartItem = cartItems.find(
     (item: any) => getProductId(item) === productId,
   );
-  const existingQuantity = isLoggedIn ? existingCartItem?.quantity || 0 : 0;
+  const existingQuantity = isLoggedIn
+    ? Number(existingCartItem?.quantity) || 0
+    : 0;
+  const [localExistingQuantity, setLocalExistingQuantity] = useState<
+    number | null
+  >(null);
+
+  const displayExistingQuantity = useMemo(
+    () => localExistingQuantity ?? existingQuantity,
+    [localExistingQuantity, existingQuantity],
+  );
+  useEffect(() => {
+    setLocalExistingQuantity(null);
+  }, [existingQuantity, productId]);
 
   const handleDeleteProduct = async () => {
     if (!productId) {
@@ -115,9 +131,12 @@ const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
 
       const items = await addToCart({ productId, quantity: 1 }).unwrap();
       const line = items.find(
-        (row: { productId?: string }) => row.productId === productId,
+        (row: { productId?: string; _id?: string; id?: string }) =>
+          getProductId(row) === productId,
       );
-      const newQty = line?.quantity ?? existingQuantity + 1;
+      const newQty = Number(line?.quantity) || existingQuantity + 1;
+      setLocalExistingQuantity(newQty);
+      await refetchCart();
       const name = product.title || product.name || 'Item';
       Alert.alert('Cart updated', `${name} — ab cart me quantity: ${newQty}`);
     } catch (error: any) {
@@ -146,7 +165,10 @@ const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
           <Ionicons name="trash-outline" size={18} color="#111827" />
         </TouchableOpacity>
       )}
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomSpacing + 80 }}
+      >
         <View style={styles.imageBox}>
           <Image source={{ uri: product.image }} style={styles.image} />
         </View>
@@ -156,9 +178,7 @@ const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
           <Text style={styles.title}>{product.name || product.title}</Text>
 
           <View style={styles.priceRow}>
-            <Text style={styles.price}>
-              ₹{product.price.toLocaleString()}
-            </Text>
+            <Text style={styles.price}>₹{product.price.toLocaleString()}</Text>
             {isOwner && (
               <TouchableOpacity
                 style={styles.editButton}
@@ -177,11 +197,11 @@ const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { bottom: bottomSpacing - 24 }]}>
         <TouchableOpacity style={styles.button} onPress={handleAddToCart}>
           <Text style={styles.buttonText}>
-            {existingQuantity > 0
-              ? `Add to Cart (${existingQuantity})`
+            {displayExistingQuantity > 0
+              ? `Add to Cart (${displayExistingQuantity})`
               : 'Add to Cart'}
           </Text>
         </TouchableOpacity>

@@ -6,6 +6,7 @@ import authApi from '../services/authApi';
 import productsApi from '../services/productsApi';
 import cartApi from '../services/cartApi';
 import wishlistApi from '../services/wishlistApi';
+import notificationsApi from '../services/notificationsApi';
 
 const persistConfig = {
   key: 'root',
@@ -25,6 +26,7 @@ const store = configureStore({
       productsApi.middleware,
       cartApi.middleware,
       wishlistApi.middleware,
+      notificationsApi.middleware,
     ),
 });
 

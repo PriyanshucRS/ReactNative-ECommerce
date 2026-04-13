@@ -6,6 +6,7 @@ import authApi from '../services/authApi';
 import productsApi from '../services/productsApi';
 import cartApi from '../services/cartApi';
 import wishlistApi from '../services/wishlistApi';
+import notificationsApi from '../services/notificationsApi';
 import wishlistReducer from '../slices/wishlistSlice';
 
 const rootReducer = combineReducers({
@@ -13,6 +14,7 @@ const rootReducer = combineReducers({
   productsApi: productsApi.reducer,
   cartApi: cartApi.reducer,
   wishlistApi: wishlistApi.reducer,
+  notificationsApi: notificationsApi.reducer,
   auth: authReducer,
   cart: cartReducer,
   addProduct: addProductReducer,

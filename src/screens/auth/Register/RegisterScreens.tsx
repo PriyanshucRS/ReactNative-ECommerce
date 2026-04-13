@@ -22,6 +22,24 @@ interface RegisterData {
   phone: string;
 }
 
+const NAME_REGEX = /^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/;
+const PHONE_REGEX = /^\d{10}$/;
+const INVALID_SERIES_PHONES = new Set([
+  '0123456789',
+  '1234567890',
+  '9876543210',
+  '0000000000',
+  '1111111111',
+  '2222222222',
+  '3333333333',
+  '4444444444',
+  '5555555555',
+  '6666666666',
+  '7777777777',
+  '8888888888',
+  '9999999999',
+]);
+
 const RegisterScreen = () => {
   type RegisterScreenRouteProp = RouteProp<RootStackParamList, 'registerScreen'>;
   const navigation = useNavigation<any>();
@@ -87,7 +105,16 @@ const RegisterScreen = () => {
         <Controller
           control={control}
           name="firstName"
-          rules={{ required: 'First name is required' }}
+          rules={{
+            required: 'First name is required',
+            minLength: {
+              value: 2,
+              message: 'First name must be at least 2 letters',
+            },
+            validate: value =>
+              NAME_REGEX.test((value || '').trim()) ||
+              'First name should contain letters only',
+          }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.firstName && styles.inputError]}
@@ -106,7 +133,16 @@ const RegisterScreen = () => {
         <Controller
           control={control}
           name="lastName"
-          rules={{ required: 'Last name is required' }}
+          rules={{
+            required: 'Last name is required',
+            minLength: {
+              value: 2,
+              message: 'Last name must be at least 2 letters',
+            },
+            validate: value =>
+              NAME_REGEX.test((value || '').trim()) ||
+              'Last name should contain letters only',
+          }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errors.lastName && styles.inputError]}
@@ -151,7 +187,16 @@ const RegisterScreen = () => {
           name="phone"
           rules={{
             required: 'Phone is required',
-            minLength: { value: 10, message: 'Enter valid phone number' },
+            validate: value => {
+              const cleaned = `${value || ''}`.replace(/[^\d]/g, '');
+              if (!PHONE_REGEX.test(cleaned)) {
+                return 'Enter a valid 10-digit phone number';
+              }
+              if (INVALID_SERIES_PHONES.has(cleaned)) {
+                return 'Please enter a real phone number';
+              }
+              return true;
+            },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
@@ -160,8 +205,9 @@ const RegisterScreen = () => {
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               onBlur={onBlur}
-              onChangeText={onChange}
+              onChangeText={text => onChange(text.replace(/[^\d]/g, ''))}
               value={value}
+              maxLength={10}
             />
           )}
         />

@@ -34,4 +34,12 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/cart/${id}`,
     REMOVE: (id: string) => `/api/cart/${id}`,
   },
+  NOTIFICATIONS: {
+    LIST: '/api/notifications',
+    CREATE: '/api/notifications',
+    MARK_READ: (id: string) => `/api/notifications/${id}/read`,
+    DELETE_ONE: (id: string) => `/api/notifications/${id}`,
+    CLEAR_ALL: '/api/notifications/clear-all/all',
+    DELETE_SELECTED: '/api/notifications/delete-selected',
+  },
 } as const;

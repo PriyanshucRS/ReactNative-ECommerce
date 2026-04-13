@@ -19,14 +19,9 @@ import { showWelcomeNotification } from '../../../services/notificationService';
 const OTP_LEN = 6;
 const DEFAULT_EXPIRES_SECONDS = 5 * 60;
 
-const parseIdentifier = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed.includes('@')) {
-    return { email: trimmed.toLowerCase() };
-  }
-  const phone = trimmed.replace(/[^\d]/g, '');
-  return { phone };
-};
+const parseIdentifier = (value: string) => ({
+  email: value.trim().toLowerCase(),
+});
 
 const formatSeconds = (totalSeconds: number) => {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -167,8 +162,14 @@ const OtpScreen = () => {
       const firstName = response?.user?.firstName || '';
       const lastName = response?.user?.lastName || '';
       const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const identityKey = `uid:${
+        response?.user?.uid || response?.user?.email || identifier
+      }`;
+      const alreadySeen =
+        (await AsyncStorage.getItem(`login_seen_${identityKey}`)) === '1';
+      await AsyncStorage.setItem(`login_seen_${identityKey}`, '1');
       try {
-        await showWelcomeNotification(fullName || 'User');
+        await showWelcomeNotification(fullName || 'User', !alreadySeen);
       } catch (notificationErr: any) {
         console.error('[OTP][FRONTEND] Notification failed (non-blocking)', {
           message: notificationErr?.message,
@@ -297,7 +298,7 @@ const OtpScreen = () => {
           onPress={() => navigation.replace('loginScreen')}
           style={styles.changeLink}
         >
-          <Text style={styles.changeText}>Change email/phone</Text>
+          <Text style={styles.changeText}>Change email</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

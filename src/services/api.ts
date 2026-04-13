@@ -2,8 +2,10 @@
 export * from './authApi';
 export * from './productsApi';
 export * from './cartApi';
+export * from './notificationsApi';
 
 // Named exports for slice sync (extraReducers)
 export { default as authApi } from './authApi';
 export { default as productsApi } from './productsApi';
 export { default as cartApi } from './cartApi';
+export { default as notificationsApi } from './notificationsApi';

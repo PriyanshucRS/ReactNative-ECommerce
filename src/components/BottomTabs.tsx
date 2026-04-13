@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../utils/colors';
 import type { RootState } from '../store/store';
 
@@ -10,9 +11,17 @@ type Props = {
   activeTab?: 'home' | 'cart' | 'add' | 'watchlist';
 };
 
+const TAB_BAR_BASE_HEIGHT = 70;
+
+export const useBottomTabsContentPadding = (extra = 12) => {
+  const insets = useSafeAreaInsets();
+  return TAB_BAR_BASE_HEIGHT + insets.bottom + extra;
+};
+
 const BottomTabs = ({ activeTab }: Props) => {
   const navigation = useNavigation<any>();
   const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
+  const insets = useSafeAreaInsets();
 
   const goToDrawerScreen = (
     screenName: 'homeScreen' | 'cartScreen' | 'AddProductScreen' | 'watchlistScreen',
@@ -40,7 +49,15 @@ const BottomTabs = ({ activeTab }: Props) => {
   };
 
   return (
-    <View style={styles.bottomTabs}>
+    <View
+      style={[
+        styles.bottomTabs,
+        {
+          paddingBottom: Math.max(insets.bottom, 10),
+          minHeight: TAB_BAR_BASE_HEIGHT + insets.bottom,
+        },
+      ]}
+    >
       <TouchableOpacity
         style={styles.bottomTabBtn}
         onPress={() => goToDrawerScreen('homeScreen')}

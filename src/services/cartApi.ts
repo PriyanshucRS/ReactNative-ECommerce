@@ -28,7 +28,23 @@ interface CartItemsResponse {
   cart?: {
     items?: CartItem[];
   };
+  data?: {
+    items?: CartItem[];
+    cart?: {
+      items?: CartItem[];
+    };
+  };
 }
+
+const extractCartItems = (response: CartItemsResponse | CartItem[] | undefined) => {
+  if (Array.isArray(response)) return response;
+  if (!response) return [];
+  if (Array.isArray(response.items)) return response.items;
+  if (Array.isArray(response.cart?.items)) return response.cart.items;
+  if (Array.isArray(response.data?.items)) return response.data.items;
+  if (Array.isArray(response.data?.cart?.items)) return response.data.cart.items;
+  return [];
+};
 
 const cartApi = createApi({
   reducerPath: 'cartApi',
@@ -38,8 +54,7 @@ const cartApi = createApi({
     getCart: builder.query<CartItem[], void>({
       query: () => API_ENDPOINTS.CART.LIST,
       providesTags: ['Cart'],
-      transformResponse: (response: CartItemsResponse) =>
-        response?.cart?.items || response?.items || [],
+      transformResponse: (response: CartItemsResponse) => extractCartItems(response),
     }),
     addToCart: builder.mutation<CartItem[], AddToCartPayload>({
       query: cartData => ({
@@ -48,7 +63,7 @@ const cartApi = createApi({
         body: cartData,
       }),
       invalidatesTags: ['Cart'],
-      transformResponse: (response: CartItemsResponse) => response?.items || [],
+      transformResponse: (response: CartItemsResponse) => extractCartItems(response),
     }),
     updateCartQuantity: builder.mutation<CartItem[], CartUpdatePayload>({
       query: ({ productId, quantity }) => ({
@@ -57,7 +72,7 @@ const cartApi = createApi({
         body: { quantity },
       }),
       invalidatesTags: ['Cart'],
-      transformResponse: (response: CartItemsResponse) => response?.items || [],
+      transformResponse: (response: CartItemsResponse) => extractCartItems(response),
     }),
     removeFromCart: builder.mutation<CartItem[], { productId: string }>({
       query: cartData => ({
@@ -65,7 +80,7 @@ const cartApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['Cart'],
-      transformResponse: (response: CartItemsResponse) => response?.items || [],
+      transformResponse: (response: CartItemsResponse) => extractCartItems(response),
     }),
   }),
 });

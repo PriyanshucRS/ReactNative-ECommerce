@@ -24,23 +24,32 @@ const generateTokens = (uid, email) => {
 
 const normalizeEmail = email => email?.trim()?.toLowerCase() || '';
 const normalizePhone = phone => `${phone || ''}`.replace(/[^\d]/g, '');
+const NAME_REGEX = /^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/;
+const INVALID_SERIES_PHONES = new Set([
+  '0123456789',
+  '1234567890',
+  '9876543210',
+  '0000000000',
+  '1111111111',
+  '2222222222',
+  '3333333333',
+  '4444444444',
+  '5555555555',
+  '6666666666',
+  '7777777777',
+  '8888888888',
+  '9999999999',
+]);
 const makeOtp = () => `${Math.floor(100000 + Math.random() * 900000)}`;
 let smtpTransporter = null;
 
-const getIdentifier = ({ email, phone }) => {
+const getIdentifier = ({ email }) => {
   const normalizedEmail = normalizeEmail(email);
   if (normalizedEmail)
     return {
       key: `email:${normalizedEmail}`,
       type: 'email',
       value: normalizedEmail,
-    };
-  const normalizedPhone = normalizePhone(phone);
-  if (normalizedPhone)
-    return {
-      key: `phone:${normalizedPhone}`,
-      type: 'phone',
-      value: normalizedPhone,
     };
   return null;
 };
@@ -116,15 +125,11 @@ const sendOtpOutOfBand = async ({ type, value, otp }) => {
   return true;
 };
 
-const findUserByIdentifier = async ({ email, phone }) => {
+const findUserByIdentifier = async ({ email }) => {
   const normalizedEmail = normalizeEmail(email);
-  const normalizedPhone = normalizePhone(phone);
 
   if (normalizedEmail) {
     return User.findOne({ email: normalizedEmail });
-  }
-  if (normalizedPhone) {
-    return User.findOne({ phone: normalizedPhone });
   }
 
   return null;
@@ -133,15 +138,14 @@ const findUserByIdentifier = async ({ email, phone }) => {
 // Login (request OTP by email)
 exports.login = async (req, res) => {
   try {
-    const { email, phone } = req.body;
+    const { email } = req.body;
     console.log('[AUTH][LOGIN] Request received', {
       email: normalizeEmail(email) || null,
-      phone: normalizePhone(phone) || null,
     });
-    const identifier = getIdentifier({ email, phone });
+    const identifier = getIdentifier({ email });
     if (!identifier) {
-      console.warn('[AUTH][LOGIN] Missing identifier in request');
-      return res.status(400).json({ message: 'Email or phone is required' });
+      console.warn('[AUTH][LOGIN] Missing email in request');
+      return res.status(400).json({ message: 'Email is required' });
     }
     console.log('[AUTH][LOGIN] Identifier resolved', {
       key: identifier.key,
@@ -150,7 +154,7 @@ exports.login = async (req, res) => {
     });
 
     try {
-      const userDoc = await findUserByIdentifier({ email, phone });
+      const userDoc = await findUserByIdentifier({ email });
       if (!userDoc) {
         console.warn('[AUTH][LOGIN] User not found for identifier', {
           key: identifier.key,
@@ -160,7 +164,6 @@ exports.login = async (req, res) => {
           shouldRegister: true,
           prefill: {
             email: normalizeEmail(email) || undefined,
-            phone: normalizePhone(phone) || undefined,
           },
         });
       }
@@ -221,19 +224,18 @@ exports.login = async (req, res) => {
 // Verify OTP and issue app tokens
 exports.verifyOtp = async (req, res) => {
   try {
-    const { email, phone, otp } = req.body;
+    const { email, otp } = req.body;
     console.log('[AUTH][VERIFY] Request received', {
       email: normalizeEmail(email) || null,
-      phone: normalizePhone(phone) || null,
       otpLength: `${otp || ''}`.length,
     });
-    const identifier = getIdentifier({ email, phone });
+    const identifier = getIdentifier({ email });
     if (!identifier || !otp) {
       console.warn('[AUTH][VERIFY] Missing identifier or otp', {
         hasIdentifier: Boolean(identifier),
         hasOtp: Boolean(otp),
       });
-      return res.status(400).json({ message: 'Email/phone and OTP are required' });
+      return res.status(400).json({ message: 'Email and OTP are required' });
     }
     console.log('[AUTH][VERIFY] Identifier resolved', {
       key: identifier.key,
@@ -330,6 +332,7 @@ exports.register = async (req, res) => {
     const normalizedPhone = normalizePhone(phone);
     const normalizedFirstName = firstName?.trim();
     const normalizedLastName = lastName?.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (
       !normalizedEmail ||
       !normalizedPhone ||
@@ -337,6 +340,29 @@ exports.register = async (req, res) => {
       !normalizedLastName
     ) {
       return res.status(400).json({ message: 'All fields are required' });
+    }
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+    if (!NAME_REGEX.test(normalizedFirstName) || normalizedFirstName.length < 2) {
+      return res.status(400).json({
+        message: 'First name must contain at least 2 letters only',
+      });
+    }
+    if (!NAME_REGEX.test(normalizedLastName) || normalizedLastName.length < 2) {
+      return res.status(400).json({
+        message: 'Last name must contain at least 2 letters only',
+      });
+    }
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        message: 'Please enter a valid 10-digit phone number',
+      });
+    }
+    if (INVALID_SERIES_PHONES.has(normalizedPhone)) {
+      return res.status(400).json({
+        message: 'Please enter a real phone number',
+      });
     }
     try {
       const existingUser = await User.findOne({ email: normalizedEmail });

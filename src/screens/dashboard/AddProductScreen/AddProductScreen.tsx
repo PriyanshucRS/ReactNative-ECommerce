@@ -19,8 +19,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAddProductMutation } from '../../../services/api';
 import { useUpdateProductMutation } from '../../../services/productsApi';
+import { showAppNotification } from '../../../services/notificationService';
 import { styles } from './AddProductStyles';
-import BottomTabs from '../../../components/BottomTabs';
+import BottomTabs, {
+  useBottomTabsContentPadding,
+} from '../../../components/BottomTabs';
 
 interface FormData {
   title: string;
@@ -40,6 +43,7 @@ const categoryOptions = [
 ];
 
 const AddProductScreen = () => {
+  const bottomSpacing = useBottomTabsContentPadding();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const editingProduct = route.params?.product;
@@ -108,9 +112,17 @@ const AddProductScreen = () => {
       if (isEdit) {
         const id = editingProduct.id || editingProduct._id;
         await updateProduct({ id, data: payload }).unwrap();
+        await showAppNotification(
+          'Product Updated Successfully',
+          `<b>${payload.title}</b> has been updated. Your latest changes are now live.`,
+        );
         Alert.alert('Success', 'Product updated successfully!');
       } else {
         await addProduct(payload).unwrap();
+        await showAppNotification(
+          '✅ Product Added Successfully',
+          `<b>${payload.title}</b> is now live in your product list.`,
+        );
         Alert.alert('Success', 'Product added successfully!');
       }
       navigation.goBack();
@@ -157,7 +169,10 @@ const AddProductScreen = () => {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: bottomSpacing },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

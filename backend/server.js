@@ -13,6 +13,7 @@ const { connectMongo } = require('./src/service/mongoService');
 const productRoutes = require('./src/routes/productRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
 const watchlistRoutes = require('./src/routes/watchlistRouter');
+const notificationRoutes = require('./src/routes/notificationRoutes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 const PORT = process.env.PORT || 5000;
 

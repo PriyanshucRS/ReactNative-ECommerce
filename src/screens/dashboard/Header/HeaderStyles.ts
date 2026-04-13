@@ -19,6 +19,16 @@ export const styles = StyleSheet.create({
     width: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.danger,
   },
   headerSearchWrap: {
     flex: 1,

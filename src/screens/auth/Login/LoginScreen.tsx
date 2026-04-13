@@ -42,6 +42,8 @@ interface LoginData {
   identifier: string;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
@@ -82,41 +84,35 @@ const LoginScreen = () => {
     },
   });
 
-  const parseIdentifier = (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed.includes('@')) {
-      return { type: 'email' as const, email: trimmed.toLowerCase() };
-    }
-    const phone = trimmed.replace(/[^\d+]/g, '');
-    return { type: 'phone' as const, phone };
+  const markIdentityAsSeen = async (identity: string) => {
+    if (!identity) return;
+    await AsyncStorage.setItem(`login_seen_${identity}`, '1');
+  };
+
+  const hasSeenIdentity = async (identity: string) => {
+    if (!identity) return false;
+    const value = await AsyncStorage.getItem(`login_seen_${identity}`);
+    return value === '1';
   };
 
   const onSubmit = async (data: LoginData) => {
     try {
-      const trimmedIdentifier = data.identifier.trim();
-      const payload = parseIdentifier(trimmedIdentifier);
+      const email = data.identifier.trim().toLowerCase();
 
-      if (!(payload as any).email && !(payload as any).phone) {
-        Alert.alert('Error', 'Email or phone cannot be empty');
+      if (!email) {
+        Alert.alert('Error', 'Email cannot be empty');
         return;
       }
 
-      if (payload.type === 'phone') {
-        const response: any = await requestOtp({
-          phone: payload.phone,
-        }).unwrap();
-        Alert.alert('Success', response?.message || 'OTP sent successfully');
-        navigation.navigate('otpScreen', {
-          identifier: payload.phone || trimmedIdentifier,
-          authMode: 'backend',
-        });
+      if (!EMAIL_REGEX.test(email)) {
+        Alert.alert('Error', 'Please enter a valid email address');
         return;
       }
 
-      const response: any = await requestOtp({ email: payload.email }).unwrap();
+      const response: any = await requestOtp({ email }).unwrap();
       Alert.alert('Success', response?.message || 'OTP sent successfully');
       navigation.navigate('otpScreen', {
-        identifier: payload.email || trimmedIdentifier,
+        identifier: email,
         authMode: 'backend',
       });
     } catch (err: any) {
@@ -330,8 +326,12 @@ const LoginScreen = () => {
       }
       await AsyncStorage.setItem('userVerified', 'true');
       const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const identityKey =
+        backendUser?.uid || backendUser?.email || firebaseUser.email || '';
+      const alreadySeen = await hasSeenIdentity(`uid:${identityKey}`);
+      await markIdentityAsSeen(`uid:${identityKey}`);
       try {
-        await showWelcomeNotification(fullName || 'User');
+        await showWelcomeNotification(fullName || 'User', !alreadySeen);
       } catch (notificationErr: any) {
         console.warn(
           '[GoogleLogin] Welcome notification skipped (non-blocking)',
@@ -342,7 +342,6 @@ const LoginScreen = () => {
         );
       }
       console.log('[GoogleLogin] Login flow completed successfully');
-      Alert.alert('Success', 'Logged in with Google!');
       navigation.replace('MainDrawer');
     } catch (error: any) {
       console.error('[GoogleLogin] Failed', {
@@ -391,8 +390,10 @@ const LoginScreen = () => {
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
+        <Image source={require('../../../assets/main_logo.jpg')} style={styles.topLogo} />
+
         <Text style={styles.headerText}>
-          Welcome Back{'\n'}
+          Welcome to AwesomeProject{'\n'}
           {}
         </Text>
 
@@ -400,7 +401,13 @@ const LoginScreen = () => {
           control={control}
           name="identifier"
           rules={{
-            required: 'Email or phone is required',
+            required: 'Email is required',
+            validate: value => {
+              const input = `${value || ''}`.trim();
+              if (!input) return 'Email is required';
+              if (!EMAIL_REGEX.test(input)) return 'Please enter a valid email address';
+              return true;
+            },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
@@ -432,6 +439,8 @@ const LoginScreen = () => {
           )}
         </TouchableOpacity>
 
+        <Text style={styles.orText}>OR</Text>
+
         <TouchableOpacity
           style={[styles.btn, styles.googleBtn]}
           onPress={handleGoogleLogin}
@@ -457,12 +466,6 @@ const LoginScreen = () => {
           <Text style={styles.text1}>New here? Go to Register</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => navigation.replace('MainDrawer')}
-          style={styles.homeLink}
-        >
-          <Text style={styles.homeText}>Go to Home</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );

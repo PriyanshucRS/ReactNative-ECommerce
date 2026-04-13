@@ -18,11 +18,15 @@ import {
 import { useGetProductsQuery } from '../../../services/productsApi';
 import { styles } from './WatchlistStyles';
 import { getFallbackKey, getProductId } from '../../../utils/helpers';
-import BottomTabs from '../../../components/BottomTabs';
+import { showAppNotification } from '../../../services/notificationService';
+import BottomTabs, {
+  useBottomTabsContentPadding,
+} from '../../../components/BottomTabs';
 import type { RootState } from '../../../store/store';
 
 const WatchlistScreen = () => {
   const navigation = useNavigation<any>();
+  const listBottomPadding = useBottomTabsContentPadding();
   const isFocused = useIsFocused();
   const isLoggedIn = useSelector((state: RootState) => !!state.auth.user);
   const { data: allProducts = [] } = useGetProductsQuery(undefined, {
@@ -33,15 +37,16 @@ const WatchlistScreen = () => {
   const availableProductIds = new Set(
     allProducts.map(p => p.id || p._id).filter(Boolean) as string[],
   );
-  const { data: wishlistData, isLoading, refetch } = useGetWishlistQuery(
-    undefined,
-    {
-      skip: !isLoggedIn,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
-      refetchOnReconnect: true,
-    },
-  );
+  const {
+    data: wishlistData,
+    isLoading,
+    refetch,
+  } = useGetWishlistQuery(undefined, {
+    skip: !isLoggedIn,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
 
   React.useEffect(() => {
     if (isFocused && isLoggedIn) refetch();
@@ -61,6 +66,10 @@ const WatchlistScreen = () => {
           onPress: async () => {
             try {
               await toggleWishlist({ productId }).unwrap();
+              await showAppNotification(
+                '💖 Watchlist Updated',
+                '<b>An item</b> has been removed from your watchlist.',
+              );
               Alert.alert('Success', 'Removed from watchlist!');
             } catch (err: any) {
               Alert.alert('Error', err?.data?.message || 'Failed to remove');
@@ -93,10 +102,7 @@ const WatchlistScreen = () => {
         <View style={styles.contentBox}>
           <Text style={styles.category}>{item.category}</Text>
           <Text
-            style={[
-              styles.name,
-              isUnavailable && { color: '#9CA3AF' },
-            ]}
+            style={[styles.name, isUnavailable && { color: '#9CA3AF' }]}
             numberOfLines={1}
           >
             {item.title || item.name}
@@ -106,20 +112,14 @@ const WatchlistScreen = () => {
               Unavailable (deleted)
             </Text>
           )}
-          <Text
-            style={styles.desc}
-            numberOfLines={2}
-          >
+          <Text style={styles.desc} numberOfLines={2}>
             {item.description}
           </Text>
 
           <View style={styles.priceRow}>
             <Text style={styles.price}>₹{item.price.toLocaleString()}</Text>
             <TouchableOpacity
-              style={[
-                styles.deleteBtn,
-                isUnavailable && { opacity: 0.65 },
-              ]}
+              style={[styles.deleteBtn, isUnavailable && { opacity: 0.65 }]}
               onPress={() => handleDelete(getProductId(item))}
             >
               <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
@@ -143,7 +143,9 @@ const WatchlistScreen = () => {
       <TouchableOpacity
         style={styles.backButton}
         onPress={() =>
-          navigation.getParent()?.navigate('MainDrawer', { screen: 'homeScreen' })
+          navigation
+            .getParent()
+            ?.navigate('MainDrawer', { screen: 'homeScreen' })
         }
       >
         <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
@@ -151,7 +153,7 @@ const WatchlistScreen = () => {
       <FlatList
         data={wishlist}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 86 }}
+        contentContainerStyle={{ paddingBottom: listBottomPadding }}
         keyExtractor={getFallbackKey}
         renderItem={renderProduct}
         numColumns={1}

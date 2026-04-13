@@ -23,11 +23,13 @@ const resolveProductDocumentById = async productId => {
 const cleanInvalidProducts = async items => {
   const cleaned = [];
   for (const item of items) {
+    const plainItem =
+      typeof item?.toObject === 'function' ? item.toObject() : item;
     const storedProductId = getItemProductId(item);
     const resolvedProduct = await resolveProductDocumentById(storedProductId);
     if (resolvedProduct) {
       cleaned.push({
-        ...item,
+        ...plainItem,
         productId: resolvedProduct.id,
         unavailable: false,
         // Refresh latest product fields so updates reflect in cart.
@@ -39,7 +41,7 @@ const cleanInvalidProducts = async items => {
       });
     } else {
       cleaned.push({
-        ...item,
+        ...plainItem,
         productId: storedProductId,
         unavailable: true,
       });
@@ -110,12 +112,17 @@ const updateItemQuantity = async (userId, productId, quantity) => {
   const cartDoc = await Cart.findOne({ userId });
   if (!cartDoc) throw new Error('Cart not found');
   const cart = cartDoc.toObject();
+  const normalizedProductId = String(productId || '');
+  const normalizedQuantity = Number(quantity);
   const itemIndex = cart.items.findIndex(
-    item => getItemProductId(item) === productId,
+    item => String(getItemProductId(item) || '') === normalizedProductId,
   );
   if (itemIndex === -1) throw new Error('Item not found in cart');
+  if (!Number.isFinite(normalizedQuantity) || normalizedQuantity < 1) {
+    throw new Error('Invalid quantity');
+  }
 
-  cart.items[itemIndex].quantity = quantity;
+  cart.items[itemIndex].quantity = normalizedQuantity;
 
   cartDoc.items = cart.items;
   await cartDoc.save();

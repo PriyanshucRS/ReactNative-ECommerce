@@ -14,6 +14,7 @@ import { colors } from '../../../utils/colors';
 type HeaderScreenProps = {
   onSearchPress?: () => void;
   onNotificationPress?: () => void;
+  showNotificationDot?: boolean;
   searchOpen?: boolean;
   searchQuery?: string;
   onSearchChange?: (value: string) => void;
@@ -23,6 +24,7 @@ type HeaderScreenProps = {
 export const HeaderScreen = ({
   onSearchPress,
   onNotificationPress,
+  showNotificationDot = false,
   searchOpen = false,
   searchQuery = '',
   onSearchChange,
@@ -75,6 +77,7 @@ export const HeaderScreen = ({
                   size={22}
                   color={colors.textPrimary}
                 />
+                {showNotificationDot && <View style={styles.notificationDot} />}
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.iconBtn} onPress={onSearchPress}>
